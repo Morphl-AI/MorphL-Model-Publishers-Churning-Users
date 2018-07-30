@@ -153,11 +153,11 @@ class GoogleAnalytics:
 
         return complete_responses_list
 
-    # Get users / unique clients ids
+    # Get users / unique client ids
     def store_client_ids(self):
         return self.run_report_and_store('client_ids', ['dimension1'], ['users'])
 
-    # Get sessions / unique sessions ids
+    # Get sessions / unique session ids
     def store_session_ids(self, dimensions_filters):
         dimensions = ['dimension1', 'dimension2', 'sessionDurationBucket']
         metrics = ['pageViews']
@@ -237,7 +237,6 @@ class GoogleAnalytics:
     def store_site_speed(self, dimensions_filters):
         dimensions = ['dimension1', 'dimension2', 'dimension3',
                       'hostname', 'pagePath', 'landingPagePath', 'secondPagePath', 'exitPagePath', 'previousPagePath']
-
         metrics = ['sessions', 'pageLoadTime',
                    'pageLoadSample', 'domainLookupTime', 'pageDownloadTime', 'redirectionTime',
                    'serverConnectionTime', 'serverResponseTime', 'domInteractiveTime', 'domContentLoadedTime']
@@ -248,7 +247,6 @@ class GoogleAnalytics:
     def store_geo_content(self, dimensions_filters):
         dimensions = ['dimension1', 'dimension2',
                       'continent', 'country', 'region', 'city', 'latitude', 'longitude', 'regionIsoCode']
-
         metrics = ['sessions']
 
         return self.run_report_and_store('geo_content', dimensions, metrics, dimensions_filters)
@@ -257,7 +255,6 @@ class GoogleAnalytics:
     def store_traffic_sources(self, dimensions_filters):
         dimensions = ['dimension1', 'dimension2',
                       'referralPath', 'fullReferrer', 'source', 'medium', 'keyword', 'socialNetwork', 'hasSocialSourceReferral']
-
         metrics = ['sessions']
 
         return self.run_report_and_store('traffic_sources', dimensions, metrics, dimensions_filters)
@@ -265,7 +262,7 @@ class GoogleAnalytics:
     def run(self):
         self.authenticate()
         client_ids = [ cr['client_id'] for cr in self.store_client_ids() ]
-        # Create filter by clients ids
+        # Create filter by client ids
         dim1_filter = [
             {
                 'filters': {
