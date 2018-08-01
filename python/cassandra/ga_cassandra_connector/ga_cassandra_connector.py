@@ -14,6 +14,7 @@
 from time import sleep
 from json import dumps
 from os import getenv
+from sys import exc_info
 
 from apiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
@@ -140,6 +141,7 @@ class GoogleAnalytics:
             except Exception as ex:
                 print('BEGIN EXCEPTION')
                 print(report_type)
+                print(sys.exc_info()[0])
                 print(str(ex))
                 print(dumps(data_chunk['reports'][0]))
                 print('END EXCEPTION')
