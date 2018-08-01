@@ -141,7 +141,7 @@ class GoogleAnalytics:
             except Exception as ex:
                 print('BEGIN EXCEPTION')
                 print(report_type)
-                print(sys.exc_info()[0])
+                print(exc_info()[0])
                 print(str(ex))
                 print(dumps(data_chunk['reports'][0]))
                 print('END EXCEPTION')
