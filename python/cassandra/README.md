@@ -21,7 +21,7 @@ pip -V
 After this, upgrade pip and install the Python packages required by the MorphL project:
 ```
 pip install --upgrade pip
-pip install google-api-python-client tensorflow cassandra-driver
+pip install oauth2client google-api-python-client tensorflow cassandra-driver
 ```
 Side Note: The MorphL server environment runs exclusively on `Anaconda3`.
 
