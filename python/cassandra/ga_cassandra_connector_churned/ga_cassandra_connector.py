@@ -14,6 +14,7 @@
 from time import sleep
 from json import dumps
 from os import getenv
+from sys import exc_info
 
 from apiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
@@ -45,37 +46,43 @@ class CassandraPersistence:
         """
         self.prep_stmts = {}
 
-        partition_key_of_1_list = ['churned_users']
-        partition_key_of_2_list = ['churned_users_sessions']
+        type_1_list = ['churned_users']
+        type_2_list = ['churned_users_sessions']
 
-        template_key_of_1 = 'INSERT INTO ga_{} (client_id,day_of_data_capture,json_data) VALUES (?,?,?)'
-        template_key_of_2 = 'INSERT INTO ga_{} (client_id,day_of_data_capture,session_id,json_data) VALUES (?,?,?,?)'
+        template_for_type_1 = 'INSERT INTO ga_{} (client_id,day_of_data_capture,json_meta,json_data) VALUES (?,?,?,?)'
+        template_for_type_2 = 'INSERT INTO ga_{} (client_id,day_of_data_capture,session_id,json_meta,json_data) VALUES (?,?,?,?,?)'
 
-        for report_type in partition_key_of_1_list:
+        for report_type in type_1_list:
             self.prep_stmts[report_type] = self.session.prepare(
-                template_key_of_1.format(report_type))
-        for report_type in partition_key_of_2_list:
+                template_for_type_1.format(report_type))
+        for report_type in type_2_list:
             self.prep_stmts[report_type] = self.session.prepare(
-                template_key_of_2.format(report_type))
+                template_for_type_2.format(report_type))
 
-        self.partition_key_of_1_set = set(partition_key_of_1_list)
-        self.partition_key_of_2_set = set(partition_key_of_2_list)
+        self.type_1_set = set(type_1_list)
+        self.type_2_set = set(type_2_list)
 
-    def persist_dict_record(self, report_type, dict_record):
-        client_id = dict_record['dimensions'][0] if dict_record['dimensions'][0].startswith(
-            'GA') else 'UNKNOWN'
-        json_data = dumps(dict_record)
+    def persist_dict_record(self, report_type, meta_dict, data_dict):
+        raw_cl_id = data_dict['dimensions'][0]
+        client_id = raw_cl_id if raw_cl_id.startswith('GA') else 'UNKNOWN'
+        json_meta = dumps(meta_dict)
+        json_data = dumps(data_dict)
 
-        if report_type in self.partition_key_of_1_set:
-            bind_list = [client_id, self.DAY_OF_DATA_CAPTURE, json_data]
-            return {'cassandra_future': self.session.execute_async(self.prep_stmts[report_type], bind_list, timeout=self.CASS_REQ_TIMEOUT),
+        if report_type in self.type_1_set:
+            bind_list = [client_id, self.DAY_OF_DATA_CAPTURE,
+                         json_meta, json_data]
+            return {'cassandra_future': self.session.execute_async(self.prep_stmts[report_type],
+                                                                   bind_list,
+                                                                   timeout=self.CASS_REQ_TIMEOUT),
                     'client_id': client_id}
 
-        if report_type in self.partition_key_of_2_set:
-            session_id = dict_record['dimensions'][1]
+        if report_type in self.type_2_set:
+            session_id = data_dict['dimensions'][1]
             bind_list = [client_id, self.DAY_OF_DATA_CAPTURE,
-                         session_id, json_data]
-            return {'cassandra_future': self.session.execute_async(self.prep_stmts[report_type], bind_list, timeout=self.CASS_REQ_TIMEOUT),
+                         session_id, json_meta, json_data]
+            return {'cassandra_future': self.session.execute_async(self.prep_stmts[report_type],
+                                                                   bind_list,
+                                                                   timeout=self.CASS_REQ_TIMEOUT),
                     'client_id': client_id,
                     'session_id': session_id}
 
@@ -143,16 +150,23 @@ class GoogleAnalytics:
                 query_params['pageToken'] = page_token
             data_chunk = reports_object.batchGet(
                 body={'reportRequests': [query_params]}).execute()
-            partial_rl = []
+            data_rows = []
+            meta_dict = {}
             try:
-                partial_rl = [self.store.persist_dict_record(
-                    report_type, dict_record) for dict_record in data_chunk['reports'][0]['data']['rows']]
+                data_rows = data_chunk['reports'][0]['data']['rows']
+                meta = data_chunk['reports'][0]['columnHeader']
+                d_names_list = meta['dimensions']
+                m_names_list = [m_meta_dict['name'] for m_meta_dict in meta['metricHeader']['metricHeaderEntries']]
+                meta_dict = {'dimensions': d_names_list, 'metrics': m_names_list}
             except Exception as ex:
                 print('BEGIN EXCEPTION')
                 print(report_type)
+                print(exc_info()[0])
                 print(str(ex))
                 print(dumps(data_chunk['reports'][0]))
                 print('END EXCEPTION')
+            partial_rl = [self.store.persist_dict_record(
+                report_type, meta_dict, data_dict) for data_dict in data_rows]
             complete_responses_list.extend(partial_rl)
             page_token = data_chunk['reports'][0].get('nextPageToken')
             if not page_token:
