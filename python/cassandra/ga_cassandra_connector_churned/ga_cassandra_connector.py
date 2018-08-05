@@ -17,7 +17,7 @@ from os import getenv
 from sys import exc_info
 
 from apiclient.discovery import build
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2 import service_account
 
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
@@ -101,8 +101,9 @@ class GoogleAnalytics:
 
     # Initializes an Analytics Reporting API V4 service object.
     def authenticate(self):
-        credentials = ServiceAccountCredentials.from_json_keyfile_name(
-            self.KEY_FILE_LOCATION, self.SCOPES)
+        credentials = service_account.Credentials \
+                                     .from_service_account_file(self.KEY_FILE_LOCATION) \
+                                     .with_scopes(self.SCOPES)
         # Build the service object.
         self.analytics = build('analyticsreporting',
                                'v4', credentials=credentials)
