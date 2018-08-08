@@ -27,9 +27,9 @@ class CassandraPersistence:
     def __init__(self):
         self.DAY_OF_DATA_CAPTURE = getenv('DAY_OF_DATA_CAPTURE')
         self.MORPHL_SERVER_IP_ADDRESS = getenv('MORPHL_SERVER_IP_ADDRESS')
-        self.MORPHL_CASSANDRA_USERNAME = 'morphl'
+        self.MORPHL_CASSANDRA_USERNAME = getenv('MORPHL_CASSANDRA_USERNAME')
         self.MORPHL_CASSANDRA_PASSWORD = getenv('MORPHL_CASSANDRA_PASSWORD')
-        self.MORPHL_CASSANDRA_KEYSPACE = 'morphl'
+        self.MORPHL_CASSANDRA_KEYSPACE = getenv('MORPHL_CASSANDRA_KEYSPACE')
         self.CASS_REQ_TIMEOUT = 3600.0
 
         self.auth_provider = PlainTextAuthProvider(
