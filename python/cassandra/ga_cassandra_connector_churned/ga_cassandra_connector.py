@@ -2,7 +2,7 @@
 
 # This connector is intended to run inside of a Docker container.
 # Install Python dependencies:
-# pip install oauth2client google-api-python-client cassandra-driver
+# pip install google-auth google-api-python-client cassandra-driver
 # In the same directory you will find in a .cql file all the prerequisite Cassandra table definitions.
 # The following environment variables need to be set before executing this connector:
 # DAY_OF_DATA_CAPTURE=2018-07-27
