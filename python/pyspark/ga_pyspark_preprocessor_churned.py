@@ -79,7 +79,7 @@ field_baselines['ga_cus_df'] = [
      'needs_conversion': True}
 ]
 
-def get_json_schemas(df):
+def get_json_schemas(df, spark_session):
     return {
         'json_meta_schema': spark_session.read.json(
             df.limit(10).rdd.map(lambda row: row.json_meta)).schema,
@@ -207,8 +207,8 @@ def main():
 
     json_schemas = {}
 
-    json_schemas['ga_cu_df'] = get_json_schemas(ga_cu_df)
-    json_schemas['ga_cus_df'] = get_json_schemas(ga_cus_df)
+    json_schemas['ga_cu_df'] = get_json_schemas(ga_cu_df, spark_session)
+    json_schemas['ga_cus_df'] = get_json_schemas(ga_cus_df, spark_session)
 
     after_json_parsing_df = {}
 
