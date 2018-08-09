@@ -1,4 +1,4 @@
-# spark-submit --jars /opt/spark/jars/spark-cassandra-connector.jar,/opt/spark/jars/jsr166e.jar python/pyspark/ga_pyspark_preprocessor_churned.py
+# spark-submit --jars /opt/spark/jars/spark-cassandra-connector.jar,/opt/spark/jars/jsr166e.jar /opt/samplecode/python/pyspark/ga_pyspark_preprocessor_churned.py
 
 from os import getenv
 from pyspark.sql import functions as f, SparkSession
