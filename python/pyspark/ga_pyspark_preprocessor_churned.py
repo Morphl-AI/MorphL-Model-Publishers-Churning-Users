@@ -79,6 +79,18 @@ field_baselines['ga_cus_df'] = [
      'needs_conversion': True}
 ]
 
+def fetch_from_cassandra(c_table_name, spark_session):
+    load_options = {
+        'keyspace': MORPHL_CASSANDRA_KEYSPACE,
+        'table': c_table_name,
+        'spark.cassandra.input.fetch.size_in_rows': '150' }
+
+    df = (spark_session.read.format('org.apache.spark.sql.cassandra')
+                            .options(**load_options)
+                            .load())
+
+    return df
+
 def get_json_schemas(df, spark_session):
     return {
         'json_meta_schema': spark_session.read.json(
@@ -177,25 +189,9 @@ def main():
     log4j = spark_session.sparkContext._jvm.org.apache.log4j
     log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
 
-    load_options_ga_churned_users = {
-        'keyspace': MORPHL_CASSANDRA_KEYSPACE,
-        'table': 'ga_churned_users',
-        'spark.cassandra.input.fetch.size_in_rows': '150' }
+    ga_churned_users_df = fetch_from_cassandra('ga_churned_users', spark_session)
 
-    ga_churned_users_df = (
-        spark_session.read.format('org.apache.spark.sql.cassandra')
-                          .options(**load_options_ga_churned_users)
-                          .load())
-
-    load_options_ga_churned_users_sessions = {
-        'keyspace': MORPHL_CASSANDRA_KEYSPACE,
-        'table': 'ga_churned_users_sessions',
-        'spark.cassandra.input.fetch.size_in_rows': '150' }
-
-    ga_churned_users_sessions_df = (
-        spark_session.read.format('org.apache.spark.sql.cassandra')
-                          .options(**load_options_ga_churned_users_sessions)
-                          .load())
+    ga_churned_users_sessions_df = fetch_from_cassandra('ga_churned_users_sessions', spark_session)
 
     ga_cu_df = (
         ga_churned_users_df
