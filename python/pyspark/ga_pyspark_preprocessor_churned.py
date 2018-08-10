@@ -1,14 +1,11 @@
 # spark-submit --jars /opt/spark/jars/spark-cassandra-connector.jar,/opt/spark/jars/jsr166e.jar /opt/samplecode/python/pyspark/ga_pyspark_preprocessor_churned.py
 
+import datetime
 from os import getenv
 from pyspark.sql import functions as f, SparkSession
 
 MASTER_URL = 'local[*]'
 APPLICATION_NAME = 'preprocessor'
-
-# START_DATE = getenv('START_DATE')
-# Temporarily hard-coded
-START_DATE = '2018-08-08'
 
 MORPHL_SERVER_IP_ADDRESS = getenv('MORPHL_SERVER_IP_ADDRESS')
 MORPHL_CASSANDRA_USERNAME = getenv('MORPHL_CASSANDRA_USERNAME')
@@ -189,17 +186,28 @@ def main():
     log4j = spark_session.sparkContext._jvm.org.apache.log4j
     log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
 
+    ga_config_df = (
+        fetch_from_cassandra('config_parameters', spark_session)
+            .filter("morphl_component_name = 'ga_pyspark' AND parameter_name = 'days_worth_of_data_to_load'"))
+
+    days_worth_of_data_to_load = int(ga_config_df.first().parameter_value)
+
+    start_date = ((
+        datetime.datetime.now() -
+        datetime.timedelta(days=days_worth_of_data_to_load))
+            .strftime('%Y-%m-%d'))
+
     ga_churned_users_df = fetch_from_cassandra('ga_churned_users', spark_session)
 
     ga_churned_users_sessions_df = fetch_from_cassandra('ga_churned_users_sessions', spark_session)
 
     ga_cu_df = (
         ga_churned_users_df
-            .filter("day_of_data_capture >= '{}'".format(START_DATE)))
+            .filter("day_of_data_capture >= '{}'".format(start_date)))
 
     ga_cus_df = (
         ga_churned_users_sessions_df
-            .filter("day_of_data_capture >= '{}'".format(START_DATE)))
+            .filter("day_of_data_capture >= '{}'".format(start_date)))
 
     json_schemas = {}
 
