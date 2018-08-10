@@ -45,7 +45,7 @@ Cassandra features a command-line tool called `cqlsh` that is useful for viewing
 The following is the recommended way to install it:
 ```
 mkdir ~/opt
-curl -so ~/opt/cassandra.tgz http://www-eu.apache.org/dist/cassandra/3.11.2/apache-cassandra-3.11.2-bin.tar.gz
+curl -so ~/opt/cassandra.tgz http://www-eu.apache.org/dist/cassandra/3.11.3/apache-cassandra-3.11.3-bin.tar.gz
 tar -xf ~/opt/cassandra.tgz -C ~/opt
 mv ~/opt/apache-cassandra-* ~/opt/cassandra
 rm ~/opt/cassandra.tgz
@@ -57,7 +57,7 @@ You can now work with Cassandra directly by running the following command:
 The output you see should be similar to:
 ```
 Connected to MorphLCluster at ???.???.???.???:9042.
-[cqlsh 5.0.1 | Cassandra 3.11.2 | CQL spec 3.4.4 | Native protocol v4]
+[cqlsh 5.0.1 | Cassandra 3.11.3 | CQL spec 3.4.4 | Native protocol v4]
 Use HELP for help.
 morphl@cqlsh>
 ```
