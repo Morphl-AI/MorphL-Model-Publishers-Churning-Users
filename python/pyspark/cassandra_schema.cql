@@ -21,3 +21,10 @@ CREATE TABLE morphl.ga_churned_users_features (
   page_load_sample double,
   PRIMARY KEY ((client_id), day_of_data_capture, session_id)
 ) WITH CLUSTERING ORDER BY (day_of_data_capture DESC);
+
+CREATE TABLE morphl.config_parameters (
+  morphl_component_name text,
+  parameter_name text,
+  parameter_value text,
+  PRIMARY KEY ((morphl_component_name, parameter_name))
+);
