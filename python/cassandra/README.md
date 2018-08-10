@@ -45,7 +45,7 @@ Cassandra features a command-line tool called `cqlsh` that is useful for viewing
 The following is the recommended way to install it:
 ```
 mkdir ~/opt
-wget -qO ~/opt/cassandra.tgz http://www-eu.apache.org/dist/cassandra/3.11.2/apache-cassandra-3.11.2-bin.tar.gz
+curl -so ~/opt/cassandra.tgz http://www-eu.apache.org/dist/cassandra/3.11.2/apache-cassandra-3.11.2-bin.tar.gz
 tar -xf ~/opt/cassandra.tgz -C ~/opt
 mv ~/opt/apache-cassandra-* ~/opt/cassandra
 rm ~/opt/cassandra.tgz
