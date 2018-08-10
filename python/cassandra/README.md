@@ -21,7 +21,7 @@ pip -V
 After this, upgrade pip and install the Python packages required by the MorphL project:
 ```
 pip install --upgrade pip
-pip install oauth2client google-api-python-client tensorflow cassandra-driver
+pip install google-auth google-api-python-client tensorflow cassandra-driver
 ```
 Side Note: The MorphL server environment runs exclusively on `Anaconda3`.
 
@@ -112,6 +112,14 @@ CREATE TABLE morphl.ps_area (
 ) WITH CLUSTERING ORDER BY (day_of_data_capture DESC);
 ```
 There is one subtle difference, and we are going to cover it later.
+
+### Executing all CQL commands stored in a file
+
+`cqlsh` provides the flag `-f` which can be used like this:
+```
+/usr/bin/python ~/opt/cassandra/bin/cqlsh.py ${MORPHL_SERVER_IP_ADDRESS} -u morphl -p ${MORPHL_CASSANDRA_PASSWORD} -f /tmp/abc.cql
+```
+where `/tmp/abc.cql` is a file that contains CQL statements.
 
 ### Differences between Cassandra and the relational databases you know
 
