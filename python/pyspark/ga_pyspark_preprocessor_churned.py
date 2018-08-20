@@ -287,7 +287,8 @@ final_df = (
             .withColumn(
                 'is_tablet', f.when(
                     f.col('device_category') == 'tablet', 1).otherwise(0))
-            .drop('device_category'))
+            .drop('device_category')
+            .repartition(32))
 
     save_options_ga_churned_users_features = {
         'keyspace': MORPHL_CASSANDRA_KEYSPACE,
