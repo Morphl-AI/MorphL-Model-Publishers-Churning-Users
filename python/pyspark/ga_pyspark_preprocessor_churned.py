@@ -273,10 +273,21 @@ def main():
 
     final_fields_to_select = primary_key['ga_cus_df'] + s_schema_as_list + u_schema_as_list
 
-    final_df = (
-        joined_df.withColumnRenamed('s_client_id', 'client_id')
-                 .withColumnRenamed('s_day_of_data_capture', 'day_of_data_capture')
-                 .select(*final_fields_to_select))
+final_df = (
+    joined_df
+            .withColumnRenamed('s_client_id', 'client_id')
+            .withColumnRenamed('s_day_of_data_capture', 'day_of_data_capture')
+            .select(*final_fields_to_select)
+            .withColumn(
+                'is_desktop', f.when(
+                    f.col('device_category') == 'desktop', 1).otherwise(0))
+            .withColumn(
+                'is_mobile', f.when(
+                    f.col('device_category') == 'mobile', 1).otherwise(0))
+            .withColumn(
+                'is_tablet', f.when(
+                    f.col('device_category') == 'tablet', 1).otherwise(0))
+            .drop('device_category'))
 
     save_options_ga_churned_users_features = {
         'keyspace': MORPHL_CASSANDRA_KEYSPACE,
