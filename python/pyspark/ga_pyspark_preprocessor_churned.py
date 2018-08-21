@@ -278,8 +278,8 @@ def main():
 
     final_fields_to_select = primary_key['ga_cus_df'] + s_schema_as_list + u_schema_as_list
 
-final_df = (
-    joined_df
+    final_df = (
+        joined_df
             .withColumnRenamed('s_client_id', 'client_id')
             .withColumnRenamed('s_day_of_data_capture', 'day_of_data_capture')
             .select(*final_fields_to_select)
