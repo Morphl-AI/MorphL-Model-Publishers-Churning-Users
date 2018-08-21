@@ -14,6 +14,9 @@ MORPHL_CASSANDRA_USERNAME = getenv('MORPHL_CASSANDRA_USERNAME')
 MORPHL_CASSANDRA_PASSWORD = getenv('MORPHL_CASSANDRA_PASSWORD')
 MORPHL_CASSANDRA_KEYSPACE = getenv('MORPHL_CASSANDRA_KEYSPACE')
 
+HDFS_PORT = 9000
+HDFS_DIR = f'hdfs://{MORPHL_SERVER_IP_ADDRESS}:{HDFS_PORT}/preproc_{TODAY_AS_STR}_{UNIQUE_HASH}'
+
 primary_key = {}
 
 primary_key['ga_cu_df'] = ['client_id','day_of_data_capture']
@@ -291,6 +294,8 @@ final_df = (
                     f.col('device_category') == 'tablet', 1).otherwise(0))
             .drop('device_category')
             .repartition(32))
+
+    final_df.write.parquet(HDFS_DIR)
 
     save_options_ga_churned_users_features = {
         'keyspace': MORPHL_CASSANDRA_KEYSPACE,
