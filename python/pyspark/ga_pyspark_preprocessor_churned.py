@@ -6,6 +6,8 @@ from pyspark.sql import functions as f, SparkSession
 
 MASTER_URL = 'local[*]'
 APPLICATION_NAME = 'preprocessor'
+TODAY_AS_STR = getenv('TODAY_AS_STR')
+UNIQUE_HASH = getenv('UNIQUE_HASH')
 
 MORPHL_SERVER_IP_ADDRESS = getenv('MORPHL_SERVER_IP_ADDRESS')
 MORPHL_CASSANDRA_USERNAME = getenv('MORPHL_CASSANDRA_USERNAME')
