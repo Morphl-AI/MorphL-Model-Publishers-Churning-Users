@@ -30,7 +30,7 @@ class Cassandra:
 
     def retrieve_prediction(self, client_id):
         bind_list = [client_id]
-        return self.session.execute(self.prep_stmt, bind_list, timeout=self.CASS_REQ_TIMEOUT)
+        return self.session.execute(self.prep_stmt, bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
 
 app = Flask(__name__)
 
