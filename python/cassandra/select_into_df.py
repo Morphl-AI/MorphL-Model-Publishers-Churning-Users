@@ -7,9 +7,9 @@ from cassandra.auth import PlainTextAuthProvider
 import pandas as pd
 
 MORPHL_SERVER_IP_ADDRESS = getenv('MORPHL_SERVER_IP_ADDRESS')
-MORPHL_CASSANDRA_USERNAME = 'morphl'
+MORPHL_CASSANDRA_USERNAME = getenv('MORPHL_CASSANDRA_USERNAME')
 MORPHL_CASSANDRA_PASSWORD = getenv('MORPHL_CASSANDRA_PASSWORD')
-MORPHL_CASSANDRA_KEYSPACE = 'morphl'
+MORPHL_CASSANDRA_KEYSPACE = getenv('MORPHL_CASSANDRA_KEYSPACE')
 
 def pandas_factory(colnames, rows):
     return pd.DataFrame(rows, columns=colnames)
