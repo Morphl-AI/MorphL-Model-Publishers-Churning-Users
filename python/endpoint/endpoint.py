@@ -14,20 +14,23 @@ class Cassandra:
         self.MORPHL_CASSANDRA_PASSWORD = getenv('MORPHL_CASSANDRA_PASSWORD')
         self.MORPHL_CASSANDRA_KEYSPACE = getenv('MORPHL_CASSANDRA_KEYSPACE')
 
+        self.QUERY = 'SELECT * FROM ps_area WHERE client_id = ? LIMIT 1'
+
+        self.CASS_REQ_TIMEOUT = 3600.0
+
         self.auth_provider = PlainTextAuthProvider(
-            username=self.MORPHL_CASSANDRA_USERNAME, password=self.MORPHL_CASSANDRA_PASSWORD)
+            username=self.MORPHL_CASSANDRA_USERNAME,
+            password=self.MORPHL_CASSANDRA_PASSWORD)
         self.cluster = Cluster(
             [self.MORPHL_SERVER_IP_ADDRESS], auth_provider=self.auth_provider)
         self.session = self.cluster.connect(self.MORPHL_CASSANDRA_KEYSPACE)
         self.session.default_fetch_size = 1
 
-        self.prepare_statement()
-
-    def prepare_statement(self):
-        pass
+        self.prep_stmt = self.session.prepare(self.QUERY)
 
     def retrieve_prediction(self, client_id):
-        pass
+        bind_list = [client_id]
+        return self.session.execute(self.prep_stmt, bind_list, timeout=self.CASS_REQ_TIMEOUT)
 
 app = Flask(__name__)
 
