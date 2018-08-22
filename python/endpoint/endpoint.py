@@ -34,7 +34,19 @@ class Cassandra:
 
 app = Flask(__name__)
 
+@app.route('/getprediction/<client_id>')
+def get_prediction():
+    p = app.config['CASSANDRA'].retrieve_prediction(client_id)
+    p_dict = {}
+    if len(p) = 0:
+        p_dict['error'] = 'N/A'
+    else:
+        p_dict['result'] = p[0].days_since_last_seen
+
+    return jsonify(prediction=p_dict)
+
 if __name__ == '__main__':
+    app.config['CASSANDRA'] = Cassandra()
     if getenv('DEBUG'):
         app.config['DEBUG'] = True
         flask_port = 5858
