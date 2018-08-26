@@ -186,6 +186,7 @@ def main():
                     .config('spark.cassandra.auth.username', MORPHL_CASSANDRA_USERNAME)
                     .config('spark.cassandra.auth.password', MORPHL_CASSANDRA_PASSWORD)
                     .config('spark.sql.shuffle.partitions', 16)
+                    .config('parquet.enable.summary-metadata', 'true')
                     .getOrCreate())
 
     log4j = spark_session.sparkContext._jvm.org.apache.log4j
