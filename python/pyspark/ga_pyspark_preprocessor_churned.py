@@ -311,5 +311,44 @@ def main():
          .options(**save_options_ga_churned_users_features_training_raw)
          .save())
 
+    higher_session_counts_sql = 'SELECT * FROM features_raw WHERE session_count > 1'
+    higher_session_counts_df = spark_session.sql(higher_session_counts_sql)
+    higher_session_counts_df.createOrReplaceTempView('higher_session_counts')
+
+    avg_days_per_client_id_sql = 'SELECT client_id, AVG(days_since_last_session) avgdays FROM higher_session_counts GROUP BY client_id'
+    avg_days_per_client_id_df = spark_session.sql(avg_days_per_client_id_sql)
+    avg_days_per_client_id_df.createOrReplaceTempView('avg_days_per_client_id')
+
+    mean_value_of_avg_days_sql = 'SELECT AVG(avgdays) mean_value_of_avgdays FROM avg_days_per_client_id'
+    mean_value_of_avg_days_df = spark_session.sql(mean_value_of_avg_days_sql)
+    churn_threshold = mean_value_of_avg_days_df.first().mean_value_of_avgdays
+
+    final_df = (
+        higher_session_counts_df
+            .withColumn('churned', f.when(
+                f.col('days_since_last_session') > churn_threshold, 1.0).otherwise(0.0))
+            .select('client_id', 'day_of_data_capture', 'session_id',
+                    's_sessions', 'pageviews', 'unique_pageviews',
+                    'time_on_page', 'u_sessions', 'session_duration',
+                    'entrances', 'bounces', 'exits',
+                    'is_desktop', 'is_mobile', 'is_tablet',
+                    'churned')
+            .repartition(32))
+
+    final_df.cache()
+
+    final_df.write.parquet(HDFS_DIR)
+
+    save_options_ga_churned_users_features_training_enriched = {
+        'keyspace': MORPHL_CASSANDRA_KEYSPACE,
+        'table': 'ga_churned_users_features_training_enriched'}
+
+    (final_df
+         .write
+         .format('org.apache.spark.sql.cassandra')
+         .mode('append')
+         .options(**save_options_ga_churned_users_features_training_enriched)
+         .save())
+
 if __name__ == '__main__':
     main()
