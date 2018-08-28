@@ -37,7 +37,7 @@ app = Flask(__name__)
 @app.route('/getprediction/<client_id>')
 def get_prediction(client_id):
     p = app.config['CASSANDRA'].retrieve_prediction(client_id)
-    p_dict = {}
+    p_dict = {'client_id': client_id}
     if len(p) == 0:
         p_dict['error'] = 'N/A'
     else:
