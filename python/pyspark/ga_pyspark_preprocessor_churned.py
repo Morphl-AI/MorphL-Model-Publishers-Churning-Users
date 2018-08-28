@@ -286,13 +286,13 @@ def main():
             .select(*tr_raw_fields_to_select)
             .withColumn(
                 'is_desktop', f.when(
-                    f.col('device_category') == 'desktop', 1).otherwise(0))
+                    f.col('device_category') == 'desktop', 1.0).otherwise(0.0))
             .withColumn(
                 'is_mobile', f.when(
-                    f.col('device_category') == 'mobile', 1).otherwise(0))
+                    f.col('device_category') == 'mobile', 1.0).otherwise(0.0))
             .withColumn(
                 'is_tablet', f.when(
-                    f.col('device_category') == 'tablet', 1).otherwise(0))
+                    f.col('device_category') == 'tablet', 1.0).otherwise(0.0))
             .drop('device_category')
             .repartition(32))
 
