@@ -298,7 +298,7 @@ def main():
 
     features_raw_df.cache()
 
-    # features_raw_df.write.parquet(HDFS_DIR)
+    features_raw_df.createOrReplaceTempView('features_raw')
 
     save_options_ga_churned_users_features_training_raw = {
         'keyspace': MORPHL_CASSANDRA_KEYSPACE,
