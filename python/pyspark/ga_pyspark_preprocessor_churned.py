@@ -277,13 +277,13 @@ def main():
     u_schema_as_list = [
         prefix_sessions(fname, 'u') for fname in processed_users_dict['schema_as_list']]
 
-    final_fields_to_select = primary_key['ga_cus_df'] + s_schema_as_list + u_schema_as_list
+    tr_raw_fields_to_select = primary_key['ga_cus_df'] + s_schema_as_list + u_schema_as_list
 
-    final_df = (
+    features_raw_df = (
         joined_df
             .withColumnRenamed('s_client_id', 'client_id')
             .withColumnRenamed('s_day_of_data_capture', 'day_of_data_capture')
-            .select(*final_fields_to_select)
+            .select(*tr_raw_fields_to_select)
             .withColumn(
                 'is_desktop', f.when(
                     f.col('device_category') == 'desktop', 1).otherwise(0))
@@ -296,18 +296,20 @@ def main():
             .drop('device_category')
             .repartition(32))
 
-    final_df.write.parquet(HDFS_DIR)
+    features_raw_df.cache()
 
-    save_options_ga_churned_users_features = {
+    # features_raw_df.write.parquet(HDFS_DIR)
+
+    save_options_ga_churned_users_features_training_raw = {
         'keyspace': MORPHL_CASSANDRA_KEYSPACE,
-        'table': 'ga_churned_users_features'}
+        'table': 'ga_churned_users_features_training_raw'}
 
-    (final_df.write
-             .format('org.apache.spark.sql.cassandra')
-             .mode('append')
-             .options(**save_options_ga_churned_users_features)
-             .save())
+    (features_raw_df
+         .write
+         .format('org.apache.spark.sql.cassandra')
+         .mode('append')
+         .options(**save_options_ga_churned_users_features_training_raw)
+         .save())
 
 if __name__ == '__main__':
     main()
-
