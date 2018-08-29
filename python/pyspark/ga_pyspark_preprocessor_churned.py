@@ -18,7 +18,8 @@ MORPHL_CASSANDRA_PASSWORD = getenv('MORPHL_CASSANDRA_PASSWORD')
 MORPHL_CASSANDRA_KEYSPACE = getenv('MORPHL_CASSANDRA_KEYSPACE')
 
 HDFS_PORT = 9000
-HDFS_DIR = f'hdfs://{MORPHL_SERVER_IP_ADDRESS}:{HDFS_PORT}/preproc_{DAY_AS_STR}_{UNIQUE_HASH}'
+HDFS_DIR_TRAINING = f'hdfs://{MORPHL_SERVER_IP_ADDRESS}:{HDFS_PORT}/{DAY_AS_STR}_{UNIQUE_HASH}_preproc_training'
+HDFS_DIR_PREDICTION = f'hdfs://{MORPHL_SERVER_IP_ADDRESS}:{HDFS_PORT}/{DAY_AS_STR}_{UNIQUE_HASH}_preproc_prediction'
 
 CHURN_THRESHOLD_FILE = f'{MODELS_DIR}/{DAY_AS_STR}_{UNIQUE_HASH}_churn_threshold.txt'
 
@@ -305,15 +306,15 @@ def main():
 
     features_raw_df.createOrReplaceTempView('features_raw')
 
-    save_options_ga_churned_users_features_training_raw = {
+    save_options_ga_chu_features_raw = {
         'keyspace': MORPHL_CASSANDRA_KEYSPACE,
-        'table': 'ga_churned_users_features_training_raw'}
+        'table': 'ga_chu_features_raw'}
 
     (features_raw_df
          .write
          .format('org.apache.spark.sql.cassandra')
          .mode('append')
-         .options(**save_options_ga_churned_users_features_training_raw)
+         .options(**save_options_ga_chu_features_raw)
          .save())
 
     higher_session_counts_sql = 'SELECT * FROM features_raw WHERE session_count > 1'
@@ -343,17 +344,17 @@ def main():
 
         final_df.cache()
 
-        final_df.write.parquet(HDFS_DIR)
+        final_df.write.parquet(HDFS_DIR_TRAINING)
 
-        save_options_ga_churned_users_features_training_enriched = {
+        save_options_ga_chu_features_training = {
             'keyspace': MORPHL_CASSANDRA_KEYSPACE,
-            'table': 'ga_churned_users_features_training_enriched'}
+            'table': 'ga_chu_features_training'}
 
         (final_df
              .write
              .format('org.apache.spark.sql.cassandra')
              .mode('append')
-             .options(**save_options_ga_churned_users_features_training_enriched)
+             .options(**save_options_ga_chu_features_training)
              .save())
 
         with open(CHURN_THRESHOLD_FILE, 'w') as fh:
@@ -374,7 +375,32 @@ def main():
         hsc_ut_with_rownum_df = spark_session.sql(hsc_ut_with_rownum_sql)
         hsc_ut_with_rownum_df.createOrReplaceTempView('hsc_ut_with_rownum')
 
+        most_recent_session_sql = 'SELECT * FROM hsc_ut_with_rownum WHERE rownum = 1'
+        most_recent_session_df = spark_session.sql(most_recent_session_sql)
 
+        final_df = (
+            most_recent_session_df
+                .select('client_id', 'day_of_data_capture', 'session_id',
+                        's_sessions', 'pageviews', 'unique_pageviews',
+                        'time_on_page', 'u_sessions', 'session_duration',
+                        'entrances', 'bounces', 'exits',
+                        'is_desktop', 'is_mobile', 'is_tablet')
+                .repartition(32))
+
+        final_df.cache()
+
+        final_df.write.parquet(HDFS_DIR_PREDICTION)
+
+        save_options_ga_chu_features_prediction = {
+            'keyspace': MORPHL_CASSANDRA_KEYSPACE,
+            'table': 'ga_chu_features_prediction'}
+
+        (final_df
+             .write
+             .format('org.apache.spark.sql.cassandra')
+             .mode('append')
+             .options(**save_options_ga_chu_features_prediction)
+             .save())
 
 if __name__ == '__main__':
     main()
