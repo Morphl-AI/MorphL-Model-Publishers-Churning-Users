@@ -9,6 +9,9 @@ APPLICATION_NAME = 'preprocessor'
 DAY_AS_STR = getenv('DAY_AS_STR')
 UNIQUE_HASH = getenv('UNIQUE_HASH')
 
+TRAINING_OR_PREDICTION = getenv('TRAINING_OR_PREDICTION')
+MODELS_DIR = getenv('MODELS_DIR')
+
 MORPHL_SERVER_IP_ADDRESS = getenv('MORPHL_SERVER_IP_ADDRESS')
 MORPHL_CASSANDRA_USERNAME = getenv('MORPHL_CASSANDRA_USERNAME')
 MORPHL_CASSANDRA_PASSWORD = getenv('MORPHL_CASSANDRA_PASSWORD')
@@ -17,7 +20,7 @@ MORPHL_CASSANDRA_KEYSPACE = getenv('MORPHL_CASSANDRA_KEYSPACE')
 HDFS_PORT = 9000
 HDFS_DIR = f'hdfs://{MORPHL_SERVER_IP_ADDRESS}:{HDFS_PORT}/preproc_{DAY_AS_STR}_{UNIQUE_HASH}'
 
-CHURN_THRESHOLD_FILE = f'/opt/models/{DAY_AS_STR}_{UNIQUE_HASH}_churn_threshold.txt'
+CHURN_THRESHOLD_FILE = f'{MODELS_DIR}/{DAY_AS_STR}_{UNIQUE_HASH}_churn_threshold.txt'
 
 primary_key = {}
 
@@ -321,39 +324,43 @@ def main():
     avg_days_per_client_id_df = spark_session.sql(avg_days_per_client_id_sql)
     avg_days_per_client_id_df.createOrReplaceTempView('avg_days_per_client_id')
 
-    mean_value_of_avg_days_sql = 'SELECT AVG(avgdays) mean_value_of_avgdays FROM avg_days_per_client_id'
-    mean_value_of_avg_days_df = spark_session.sql(mean_value_of_avg_days_sql)
-    churn_threshold = mean_value_of_avg_days_df.first().mean_value_of_avgdays
+    if TRAINING_OR_PREDICTION == 'training':
+        mean_value_of_avg_days_sql = 'SELECT AVG(avgdays) mean_value_of_avgdays FROM avg_days_per_client_id'
+        mean_value_of_avg_days_df = spark_session.sql(mean_value_of_avg_days_sql)
+        churn_threshold = mean_value_of_avg_days_df.first().mean_value_of_avgdays
 
-    with open(CHURN_THRESHOLD_FILE, 'w') as fh:
-        fh.write(str(churn_threshold))
+        final_df = (
+            higher_session_counts_df
+                .withColumn('churned', f.when(
+                    f.col('days_since_last_session') > churn_threshold, 1.0).otherwise(0.0))
+                .select('client_id', 'day_of_data_capture', 'session_id',
+                        's_sessions', 'pageviews', 'unique_pageviews',
+                        'time_on_page', 'u_sessions', 'session_duration',
+                        'entrances', 'bounces', 'exits',
+                        'is_desktop', 'is_mobile', 'is_tablet',
+                        'churned')
+                .repartition(32))
 
-    final_df = (
-        higher_session_counts_df
-            .withColumn('churned', f.when(
-                f.col('days_since_last_session') > churn_threshold, 1.0).otherwise(0.0))
-            .select('client_id', 'day_of_data_capture', 'session_id',
-                    's_sessions', 'pageviews', 'unique_pageviews',
-                    'time_on_page', 'u_sessions', 'session_duration',
-                    'entrances', 'bounces', 'exits',
-                    'is_desktop', 'is_mobile', 'is_tablet',
-                    'churned')
-            .repartition(32))
+        final_df.cache()
 
-    final_df.cache()
+        final_df.write.parquet(HDFS_DIR)
 
-    final_df.write.parquet(HDFS_DIR)
+        save_options_ga_churned_users_features_training_enriched = {
+            'keyspace': MORPHL_CASSANDRA_KEYSPACE,
+            'table': 'ga_churned_users_features_training_enriched'}
 
-    save_options_ga_churned_users_features_training_enriched = {
-        'keyspace': MORPHL_CASSANDRA_KEYSPACE,
-        'table': 'ga_churned_users_features_training_enriched'}
+        (final_df
+             .write
+             .format('org.apache.spark.sql.cassandra')
+             .mode('append')
+             .options(**save_options_ga_churned_users_features_training_enriched)
+             .save())
 
-    (final_df
-         .write
-         .format('org.apache.spark.sql.cassandra')
-         .mode('append')
-         .options(**save_options_ga_churned_users_features_training_enriched)
-         .save())
+        with open(CHURN_THRESHOLD_FILE, 'w') as fh:
+            fh.write(str(churn_threshold))
+    else:
+        with open(CHURN_THRESHOLD_FILE, 'r') as fh:
+            churn_threshold = float(fh.read().strip())
 
 if __name__ == '__main__':
     main()
