@@ -366,5 +366,9 @@ def main():
         under_threshold_df = spark_session.sql(under_threshold_sql)
         under_threshold_df.createOrReplaceTempView('under_threshold')
 
+        hsc_ut_sql = 'SELECT * FROM higher_session_counts hsc JOIN under_threshold ut ON hsc.client_id = ut.client_id'
+        hsc_ut_df = spark_session.sql(hsc_ut_sql)
+        hsc_ut_df.createOrReplaceTempView('hsc_ut')
+
 if __name__ == '__main__':
     main()
