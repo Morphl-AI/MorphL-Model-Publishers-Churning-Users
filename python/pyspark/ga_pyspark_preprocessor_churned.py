@@ -17,6 +17,8 @@ MORPHL_CASSANDRA_KEYSPACE = getenv('MORPHL_CASSANDRA_KEYSPACE')
 HDFS_PORT = 9000
 HDFS_DIR = f'hdfs://{MORPHL_SERVER_IP_ADDRESS}:{HDFS_PORT}/preproc_{DAY_AS_STR}_{UNIQUE_HASH}'
 
+CHURN_THRESHOLD_FILE = f'/opt/models/{DAY_AS_STR}_{UNIQUE_HASH}_churn_threshold.txt'
+
 primary_key = {}
 
 primary_key['ga_cu_df'] = ['client_id','day_of_data_capture']
@@ -322,6 +324,9 @@ def main():
     mean_value_of_avg_days_sql = 'SELECT AVG(avgdays) mean_value_of_avgdays FROM avg_days_per_client_id'
     mean_value_of_avg_days_df = spark_session.sql(mean_value_of_avg_days_sql)
     churn_threshold = mean_value_of_avg_days_df.first().mean_value_of_avgdays
+
+    with open(CHURN_THRESHOLD_FILE, 'w') as fh:
+        fh.write(str(churn_threshold))
 
     final_df = (
         higher_session_counts_df
