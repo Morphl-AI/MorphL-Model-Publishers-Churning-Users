@@ -46,8 +46,8 @@ class CassandraPersistence:
         """
         self.prep_stmts = {}
 
-        type_1_list = ['churned_users']
-        type_2_list = ['churned_users_sessions']
+        type_1_list = ['chu_users']
+        type_2_list = ['chu_sessions']
 
         template_for_type_1 = 'INSERT INTO ga_{} (client_id,day_of_data_capture,json_meta,json_data) VALUES (?,?,?,?)'
         template_for_type_2 = 'INSERT INTO ga_{} (client_id,day_of_data_capture,session_id,json_meta,json_data) VALUES (?,?,?,?,?)'
@@ -179,26 +179,26 @@ class GoogleAnalytics:
         return complete_responses_list
 
     # Get churned users
-    def store_churned_users(self):
+    def store_chu_users(self):
         dimensions = ['dimension1', 'deviceCategory']
         metrics = ['sessions', 'sessionDuration', 'entrances',
                    'bounces', 'exits', 'pageValue', 'pageLoadTime', 'pageLoadSample']
 
-        return self.run_report_and_store('churned_users', dimensions, metrics)
+        return self.run_report_and_store('chu_users', dimensions, metrics)
 
     # Get churned users with additional session data
-    def store_churned_users_sessions(self):
+    def store_chu_sessions(self):
         dimensions = ['dimension1', 'dimension2',
                       'sessionCount', 'daysSinceLastSession']
         metrics = ['sessions', 'pageviews', 'uniquePageviews',
                    'screenViews', 'hits', 'timeOnPage']
 
-        return self.run_report_and_store('churned_users_sessions', dimensions, metrics)
+        return self.run_report_and_store('chu_sessions', dimensions, metrics)
 
     def run(self):
         self.authenticate()
-        self.store_churned_users()
-        self.store_churned_users_sessions()
+        self.store_chu_users()
+        self.store_chu_sessions()
 
 
 def main():

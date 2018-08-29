@@ -209,16 +209,16 @@ def main():
         datetime.timedelta(days=days_worth_of_data_to_load))
             .strftime('%Y-%m-%d'))
 
-    ga_churned_users_df = fetch_from_cassandra('ga_churned_users', spark_session)
+    ga_chu_users_df = fetch_from_cassandra('ga_chu_users', spark_session)
 
-    ga_churned_users_sessions_df = fetch_from_cassandra('ga_churned_users_sessions', spark_session)
+    ga_chu_sessions_df = fetch_from_cassandra('ga_chu_sessions', spark_session)
 
     ga_cu_df = (
-        ga_churned_users_df
+        ga_chu_users_df
             .filter("day_of_data_capture >= '{}'".format(start_date)))
 
     ga_cus_df = (
-        ga_churned_users_sessions_df
+        ga_chu_sessions_df
             .filter("day_of_data_capture >= '{}'".format(start_date)))
 
     json_schemas = {}
