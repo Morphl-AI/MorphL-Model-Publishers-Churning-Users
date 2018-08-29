@@ -360,7 +360,11 @@ def main():
             fh.write(str(churn_threshold))
     else:
         with open(CHURN_THRESHOLD_FILE, 'r') as fh:
-            churn_threshold = float(fh.read().strip())
+            churn_threshold = fh.read().strip()
+
+        under_threshold_sql = f'SELECT client_id FROM avg_days_per_client_id WHERE avgdays < {churn_threshold}'
+        under_threshold_df = spark_session.sql(under_threshold_sql)
+        under_threshold_df.createOrReplaceTempView('under_threshold')
 
 if __name__ == '__main__':
     main()
