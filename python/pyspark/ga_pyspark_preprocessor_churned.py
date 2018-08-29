@@ -370,5 +370,11 @@ def main():
         hsc_ut_df = spark_session.sql(hsc_ut_sql)
         hsc_ut_df.createOrReplaceTempView('hsc_ut')
 
+        hsc_ut_with_rownum_sql = 'SELECT ROW_NUMBER() OVER(PARTITION BY client_id ORDER BY day_of_data_capture DESC) as rownum, * FROM hsc_ut'
+        hsc_ut_with_rownum_df = spark_session.sql(hsc_ut_with_rownum_sql)
+        hsc_ut_with_rownum_df.createOrReplaceTempView('hsc_ut_with_rownum')
+
+
+
 if __name__ == '__main__':
     main()
