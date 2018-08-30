@@ -366,10 +366,12 @@ def main():
         under_threshold_sql = f'SELECT client_id FROM avg_days_per_client_id WHERE avgdays < {churn_threshold}'
         under_threshold_df = spark_session.sql(under_threshold_sql)
         under_threshold_df.createOrReplaceTempView('under_threshold')
+        under_threshold_df.printSchema()
 
         hsc_ut_sql = 'SELECT * FROM higher_session_counts hsc JOIN under_threshold ut ON hsc.client_id = ut.client_id'
         hsc_ut_df = spark_session.sql(hsc_ut_sql)
         hsc_ut_df.createOrReplaceTempView('hsc_ut')
+        hsc_ut_df.printSchema()
 
         hsc_ut_with_rownum_sql = 'SELECT ROW_NUMBER() OVER(PARTITION BY hsc_ut.client_id ORDER BY hsc_ut.day_of_data_capture DESC) as rownum, * FROM hsc_ut'
         hsc_ut_with_rownum_df = spark_session.sql(hsc_ut_with_rownum_sql)
