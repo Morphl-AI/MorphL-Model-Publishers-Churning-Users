@@ -1,4 +1,4 @@
-# spark-submit --jars /opt/spark/jars/spark-cassandra-connector.jar,/opt/spark/jars/jsr166e.jar /opt/samplecode/python/pyspark/ga_pyspark_preprocessor_churned.py
+
 
 import datetime
 from os import getenv
@@ -308,7 +308,7 @@ def main():
 
     save_options_ga_chu_features_raw = {
         'keyspace': MORPHL_CASSANDRA_KEYSPACE,
-        'table': 'ga_chu_features_raw'}
+        'table': ('ga_chu_features_raw_t' if TRAINING_OR_PREDICTION == 'training' else 'ga_chu_features_raw_p')}
 
     (features_raw_df
          .write
