@@ -56,5 +56,5 @@ if __name__ == '__main__':
     dask_df = client.persist(dd.read_parquet(HDFS_DIR_INPUT))
     dask_df.client_id.count().compute()
     dask_df['prediction'] = dask_df.map_partitions(batch_inference_on_partition, meta=('prediction', float))
-    dask_df['noop'] = dask_df.map_partitions(persist_partition, meta=('noop', int))
-    dask_df.noop.compute()
+    dask_df['token'] = dask_df.map_partitions(persist_partition, meta=('token', int))
+    dask_df.token.compute()
