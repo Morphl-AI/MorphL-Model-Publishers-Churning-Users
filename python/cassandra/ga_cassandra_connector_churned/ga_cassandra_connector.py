@@ -179,26 +179,26 @@ class GoogleAnalytics:
         return complete_responses_list
 
     # Get churned users
-    def store_chu_users(self):
+    def store_users(self):
         dimensions = ['dimension1', 'deviceCategory']
         metrics = ['sessions', 'sessionDuration', 'entrances',
                    'bounces', 'exits', 'pageValue', 'pageLoadTime', 'pageLoadSample']
 
-        return self.run_report_and_store('chu_users', dimensions, metrics)
+        return self.run_report_and_store('users', dimensions, metrics)
 
     # Get churned users with additional session data
-    def store_chu_sessions(self):
+    def store_sessions(self):
         dimensions = ['dimension1', 'dimension2',
                       'sessionCount', 'daysSinceLastSession']
         metrics = ['sessions', 'pageviews', 'uniquePageviews',
                    'screenViews', 'hits', 'timeOnPage']
 
-        return self.run_report_and_store('chu_sessions', dimensions, metrics)
+        return self.run_report_and_store('sessions', dimensions, metrics)
 
     def run(self):
         self.authenticate()
-        self.store_chu_users()
-        self.store_chu_sessions()
+        self.store_users()
+        self.store_sessions()
 
 
 def main():
