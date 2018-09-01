@@ -46,11 +46,11 @@ class CassandraPersistence:
         """
         self.prep_stmts = {}
 
-        type_1_list = ['chu_users']
-        type_2_list = ['chu_sessions']
+        type_1_list = ['users']
+        type_2_list = ['sessions']
 
-        template_for_type_1 = 'INSERT INTO ga_{} (client_id,day_of_data_capture,json_meta,json_data) VALUES (?,?,?,?)'
-        template_for_type_2 = 'INSERT INTO ga_{} (client_id,day_of_data_capture,session_id,json_meta,json_data) VALUES (?,?,?,?,?)'
+        template_for_type_1 = 'INSERT INTO ga_chu_{} (client_id,day_of_data_capture,json_meta,json_data) VALUES (?,?,?,?)'
+        template_for_type_2 = 'INSERT INTO ga_chu_{} (client_id,day_of_data_capture,session_id,json_meta,json_data) VALUES (?,?,?,?,?)'
 
         for report_type in type_1_list:
             self.prep_stmts[report_type] = self.session.prepare(
