@@ -14,7 +14,7 @@ class Cassandra:
         self.MORPHL_CASSANDRA_PASSWORD = getenv('MORPHL_CASSANDRA_PASSWORD')
         self.MORPHL_CASSANDRA_KEYSPACE = getenv('MORPHL_CASSANDRA_KEYSPACE')
 
-        self.QUERY = 'SELECT * FROM ps_area WHERE client_id = ? LIMIT 1'
+        self.QUERY = 'SELECT * FROM ga_chu_predictions WHERE client_id = ? LIMIT 1'
 
         self.CASS_REQ_TIMEOUT = 3600.0
 
