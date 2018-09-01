@@ -41,7 +41,7 @@ def get_prediction(client_id):
     if len(p) == 0:
         p_dict['error'] = 'N/A'
     else:
-        p_dict['result'] = p[0].days_since_last_seen
+        p_dict['result'] = p[0].prediction
 
     return jsonify(prediction=p_dict)
 
