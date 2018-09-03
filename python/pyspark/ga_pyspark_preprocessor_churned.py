@@ -334,6 +334,7 @@ def main():
         'FIRST_VALUE(is_mobile) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS is_mobile,'
         'FIRST_VALUE(is_tablet) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS is_tablet,'
         'FIRST_VALUE(session_count) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS session_count,'
+        'FIRST_VALUE(days_since_last_session) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS days_since_last_session',
         'AVG(days_since_last_session) OVER (PARTITION BY client_id) AS avgdays',
         'FROM',
         'higher_session_counts'
