@@ -1,5 +1,3 @@
-
-
 import datetime
 from os import getenv
 from pyspark.sql import functions as f, SparkSession
@@ -321,22 +319,42 @@ def main():
     higher_session_counts_df = spark_session.sql(higher_session_counts_sql)
     higher_session_counts_df.createOrReplaceTempView('higher_session_counts')
 
-    avg_days_per_client_id_sql = 'SELECT client_id, AVG(days_since_last_session) avgdays FROM higher_session_counts GROUP BY client_id'
-    avg_days_per_client_id_df = spark_session.sql(avg_days_per_client_id_sql)
-    avg_days_per_client_id_df.createOrReplaceTempView('avg_days_per_client_id')
+    grouped_by_client_id_sql_parts = [
+        'SELECT',
+        'client_id,',
+        'SUM(pageviews) OVER (PARTITION BY client_id) AS pageviews,'
+        'SUM(unique_pageviews) OVER (PARTITION BY client_id) AS unique_pageviews,'
+        'SUM(time_on_page) OVER (PARTITION BY client_id) AS time_on_page,'
+        'SUM(u_sessions) OVER (PARTITION BY client_id) AS u_sessions,'
+        'SUM(session_duration) OVER (PARTITION BY client_id) AS session_duration,'
+        'SUM(entrances) OVER (PARTITION BY client_id) AS entrances,'
+        'SUM(bounces) OVER (PARTITION BY client_id) AS bounces,'
+        'SUM(exits) OVER (PARTITION BY client_id) AS exits,'
+        'FIRST_VALUE(is_desktop) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS is_desktop,'
+        'FIRST_VALUE(is_mobile) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS is_mobile,'
+        'FIRST_VALUE(is_tablet) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS is_tablet,'
+        'AVG(days_since_last_session) OVER (PARTITION BY client_id) AS avgdays',
+        'FROM',
+        'higher_session_counts',
+        'GROUP BY',
+        'client_id'
+    ]
+    grouped_by_client_id_sql = ' '.join(grouped_by_client_id_sql_parts)
+    grouped_by_client_id_df = spark_session.sql(grouped_by_client_id_sql)
+    grouped_by_client_id_df.createOrReplaceTempView('grouped_by_client_id')
 
     if TRAINING_OR_PREDICTION == 'training':
-        mean_value_of_avg_days_sql = 'SELECT AVG(avgdays) mean_value_of_avgdays FROM avg_days_per_client_id'
+        mean_value_of_avg_days_sql = 'SELECT AVG(avgdays) mean_value_of_avgdays FROM grouped_by_client_id'
         mean_value_of_avg_days_df = spark_session.sql(mean_value_of_avg_days_sql)
         churn_threshold = mean_value_of_avg_days_df.first().mean_value_of_avgdays
 
         final_df = (
-            higher_session_counts_df
+            grouped_by_client_id_df
                 .withColumn('churned', f.when(
                     f.col('days_since_last_session') > churn_threshold, 1.0).otherwise(0.0))
-                .select('client_id', 'day_of_data_capture', 'session_id',
-                        's_sessions', 'pageviews', 'unique_pageviews',
-                        'time_on_page', 'u_sessions', 'session_duration',
+                .select('client_id',
+                        'pageviews', 'unique_pageviews', 'time_on_page',
+                        'u_sessions', 'session_duration',
                         'entrances', 'bounces', 'exits',
                         'is_desktop', 'is_mobile', 'is_tablet',
                         'churned')
@@ -363,27 +381,15 @@ def main():
         with open(CHURN_THRESHOLD_FILE, 'r') as fh:
             churn_threshold = fh.read().strip()
 
-        under_threshold_sql = f'SELECT client_id FROM avg_days_per_client_id WHERE avgdays < {churn_threshold}'
+        under_threshold_sql = f'SELECT * FROM grouped_by_client_id WHERE avgdays < {churn_threshold}'
         under_threshold_df = spark_session.sql(under_threshold_sql)
         under_threshold_df.createOrReplaceTempView('under_threshold')
 
-        hsc_ut_sql = 'SELECT hsc.* FROM higher_session_counts hsc JOIN under_threshold ut ON hsc.client_id = ut.client_id'
-        hsc_ut_df = spark_session.sql(hsc_ut_sql)
-        hsc_ut_df.createOrReplaceTempView('hsc_ut')
-        hsc_ut_df.printSchema()
-
-        hsc_ut_with_rownum_sql = 'SELECT ROW_NUMBER() OVER(PARTITION BY client_id ORDER BY day_of_data_capture DESC) as rownum, * FROM hsc_ut'
-        hsc_ut_with_rownum_df = spark_session.sql(hsc_ut_with_rownum_sql)
-        hsc_ut_with_rownum_df.createOrReplaceTempView('hsc_ut_with_rownum')
-
-        most_recent_session_sql = 'SELECT * FROM hsc_ut_with_rownum WHERE rownum = 1'
-        most_recent_session_df = spark_session.sql(most_recent_session_sql)
-
         final_df = (
-            most_recent_session_df
-                .select('client_id', 'day_of_data_capture', 'session_id',
-                        's_sessions', 'pageviews', 'unique_pageviews',
-                        'time_on_page', 'u_sessions', 'session_duration',
+            under_threshold_sql
+                .select('client_id',
+                        'pageviews', 'unique_pageviews', 'time_on_page',
+                        'u_sessions', 'session_duration',
                         'entrances', 'bounces', 'exits',
                         'is_desktop', 'is_mobile', 'is_tablet')
                 .repartition(32))
