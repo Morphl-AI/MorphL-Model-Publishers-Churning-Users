@@ -333,11 +333,10 @@ def main():
         'FIRST_VALUE(is_desktop) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS is_desktop,'
         'FIRST_VALUE(is_mobile) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS is_mobile,'
         'FIRST_VALUE(is_tablet) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS is_tablet,'
+        'FIRST_VALUE(session_count) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS session_count,'
         'AVG(days_since_last_session) OVER (PARTITION BY client_id) AS avgdays',
         'FROM',
-        'higher_session_counts',
-        'GROUP BY',
-        'client_id'
+        'higher_session_counts'
     ]
     grouped_by_client_id_sql = ' '.join(grouped_by_client_id_sql_parts)
     grouped_by_client_id_df = spark_session.sql(grouped_by_client_id_sql)
@@ -355,7 +354,7 @@ def main():
                 .select('client_id',
                         'pageviews', 'unique_pageviews', 'time_on_page',
                         'u_sessions', 'session_duration',
-                        'entrances', 'bounces', 'exits',
+                        'entrances', 'bounces', 'exits', 'session_count',
                         'is_desktop', 'is_mobile', 'is_tablet',
                         'churned')
                 .repartition(32))
@@ -390,7 +389,7 @@ def main():
                 .select('client_id',
                         'pageviews', 'unique_pageviews', 'time_on_page',
                         'u_sessions', 'session_duration',
-                        'entrances', 'bounces', 'exits',
+                        'entrances', 'bounces', 'exits', 'session_count',
                         'is_desktop', 'is_mobile', 'is_tablet')
                 .repartition(32))
 
