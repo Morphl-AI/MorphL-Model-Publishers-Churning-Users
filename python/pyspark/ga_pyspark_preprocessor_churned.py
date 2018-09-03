@@ -386,7 +386,7 @@ def main():
         under_threshold_df.createOrReplaceTempView('under_threshold')
 
         final_df = (
-            under_threshold_sql
+            under_threshold_df
                 .select('client_id',
                         'pageviews', 'unique_pageviews', 'time_on_page',
                         'u_sessions', 'session_duration',
