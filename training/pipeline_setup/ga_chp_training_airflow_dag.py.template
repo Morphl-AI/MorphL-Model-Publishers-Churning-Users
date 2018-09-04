@@ -42,7 +42,7 @@ task_3_run_basic_preprocessor_cmd_parts = [
     '-e MORPHL_CASSANDRA_KEYSPACE',
     '-e MORPHL_CASSANDRA_PASSWORD',
     'pysparkcontainer',
-    '/opt/ga_chp/pre_processing/basic_processing/runbasicpreprocessor.sh ']
+    'bash /opt/ga_chp/pre_processing/basic_processing/runbasicpreprocessor.sh ']
 task_3_run_basic_preprocessor_cmd = ' '.join(task_3_run_basic_preprocessor_cmd_parts)
 
 # Do not remove the extra space at the end (the one after 'ga_chp_preproc_training')
