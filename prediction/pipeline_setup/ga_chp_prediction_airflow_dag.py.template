@@ -22,6 +22,13 @@ try:
 except:
     unique_hash = ''
 
+# Do not remove the extra space at the end (the one after 'ga_chp_truncate_tables_before_prediction_pipeline.sh')
+task_1_truncate_tables_cmd_parts = [
+    f'DAY_AS_STR={day_as_str}',
+    f'UNIQUE_HASH={unique_hash}',
+    'bash /opt/ga_chp/prediction/pipeline_setup/ga_chp_truncate_tables_before_prediction_pipeline.sh ']
+task_1_truncate_tables_cmd = ' '.join(task_1_truncate_tables_cmd_parts)
+
 # Do not remove the extra space at the end (the one after 'runbasicpreprocessor.sh')
 task_3_run_basic_preprocessor_cmd_parts = [
     f'DAY_AS_STR={day_as_str}',
@@ -103,13 +110,12 @@ task_7_run_batch_inference_cmd_parts = [
     'bash /opt/ga_chp/prediction/batch_inference/runbatchinference.sh ']
 task_7_run_batch_inference_cmd = ' '.join(task_7_run_batch_inference_cmd_parts)
 
-# Do not remove the extra space at the end (the one after 'truncate_tables_before_prediction_pipeline.sh')
 task_1_truncate_tables = BashOperator(
     task_id='task_1_truncate_tables',
-    bash_command='bash /opt/ga_chp/prediction/pipeline_setup/ga_chp_truncate_tables_before_prediction_pipeline.sh ',
+    bash_command=task_1_truncate_tables_cmd,
     dag=dag)
 
-# Do not remove the extra space at the end (the one after 'generate_id_files_prediction.sh')
+# Do not remove the extra space at the end (the one after 'ga_chp_generate_id_files_prediction.sh')
 task_2_generate_id_files_prediction = BashOperator(
     task_id='task_2_generate_id_files_prediction',
     bash_command='bash /opt/ga_chp/prediction/pipeline_setup/ga_chp_generate_id_files_prediction.sh ',
