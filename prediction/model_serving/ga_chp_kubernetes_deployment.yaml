@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ga-churned-users-deployment
+  labels:
+    run: ga-churned-users
+  namespace: default
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      run: ga-churned-users
+  template:
+    metadata:
+      labels:
+        run: ga-churned-users
+    spec:
+      containers:
+      - name: ga-churned-users
+        image: pythoncontainer
+        command: ["bash", "/opt/ga_chp/prediction/model_serving/runmodelservingendpoint.sh"]
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 6868
+          protocol: TCP
+        envFrom:
+        - configMapRef:
+            name: environment-configmap
+        volumeMounts:
+        - name: opt-ga_chp
+          mountPath: /opt/ga_chp
+      volumes:
+        - name: opt-ga_chp
+          hostPath:
+            path: /opt/ga_chp
+
