@@ -197,7 +197,7 @@ def main():
     log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
 
     ga_config_df = (
-        fetch_from_cassandra('config_parameters', spark_session)
+        fetch_from_cassandra('ga_chp_config_parameters', spark_session)
             .filter("morphl_component_name = 'ga_chp' AND parameter_name = 'days_worth_of_data_to_load'"))
 
     days_worth_of_data_to_load = int(ga_config_df.first().parameter_value)

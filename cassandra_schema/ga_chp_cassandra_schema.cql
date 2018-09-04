@@ -126,5 +126,5 @@ CREATE TABLE morphl.ga_chp_config_parameters (
 );
 
 INSERT INTO morphl.ga_chp_config_parameters (morphl_component_name,parameter_name,parameter_value)
-VALUES ('ga_pyspark','days_worth_of_data_to_load','60');
+VALUES ('ga_chp','days_worth_of_data_to_load','60');
 
