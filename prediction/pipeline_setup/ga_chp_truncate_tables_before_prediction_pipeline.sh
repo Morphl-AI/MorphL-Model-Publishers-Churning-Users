@@ -17,3 +17,4 @@ hdfs dfs -rmdir ${HDFS_DIR_SC_FEAT}/_metadata
 hdfs dfs -rm ${HDFS_DIR_SC_FEAT}/*
 hdfs dfs -rmdir ${HDFS_DIR_SC_FEAT}
 
+exit 0
