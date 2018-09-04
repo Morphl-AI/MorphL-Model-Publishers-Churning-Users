@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: ga-churned-users-service
+  name: ga-chp-service
   labels:
-    run: ga-churned-users
+    run: ga-chp
   namespace: default
 spec:
   type: LoadBalancer
@@ -12,5 +12,5 @@ spec:
     protocol: TCP
     targetPort: 6868
   selector:
-    run: ga-churned-users
+    run: ga-chp
 
