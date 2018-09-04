@@ -39,7 +39,7 @@ class Cassandra:
         self.session.execute(self.prep_stmt, bind_list, timeout=self.CASS_REQ_TIMEOUT)
 
 def batch_inference_on_partition(partition_df):
-    churn_model_file = f'/opt/models/{DAY_AS_STR}_{UNIQUE_HASH}_churn_model.h5'
+    churn_model_file = f'/opt/models/{DAY_AS_STR}_{UNIQUE_HASH}_ga_chp_churn_model.h5'
     churn_model = load_model(churn_model_file)
     prediction = churn_model.predict(partition_df.drop(['client_id'], axis=1))[0][0]
     return prediction
