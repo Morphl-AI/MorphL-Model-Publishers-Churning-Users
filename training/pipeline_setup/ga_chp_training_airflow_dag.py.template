@@ -106,16 +106,16 @@ task_8_mark_model_as_valid_cmd_parts = [
     'bash /opt/ga_chp/training/pipeline_wrapup/ga_chp_mark_model_as_valid.sh ']
 task_8_mark_model_as_valid_cmd = ' '.join(task_8_mark_model_as_valid_cmd_parts)
 
-# Do not remove the extra space at the end (the one after 'ga_chp_truncate_tables_before_training_pipeline.sh')
-task_1_truncate_tables = BashOperator(
-    task_id='task_1_truncate_tables',
-    bash_command='bash /opt/ga_chp/training/pipeline_setup/ga_chp_truncate_tables_before_training_pipeline.sh ',
+# Do not remove the extra space at the end (the one after 'ga_chp_generate_id_files_training.sh')
+task_1_generate_id_files_training = BashOperator(
+    task_id='task_1_generate_id_files_training',
+    bash_command='bash /opt/ga_chp/training/pipeline_setup/ga_chp_generate_id_files_training.sh ',
     dag=dag)
 
-# Do not remove the extra space at the end (the one after 'generate_id_files_training.sh')
-task_2_generate_id_files_training = BashOperator(
-    task_id='task_2_generate_id_files_training',
-    bash_command='bash /opt/ga_chp/training/pipeline_setup/ga_chp_generate_id_files_training.sh ',
+# Do not remove the extra space at the end (the one after 'ga_chp_truncate_tables_before_training_pipeline.sh')
+task_2_truncate_tables = BashOperator(
+    task_id='task_2_truncate_tables',
+    bash_command='bash /opt/ga_chp/training/pipeline_setup/ga_chp_truncate_tables_before_training_pipeline.sh ',
     dag=dag)
 
 task_3_run_basic_preprocessor = BashOperator(
@@ -148,8 +148,8 @@ task_8_mark_model_as_valid = BashOperator(
     bash_command=task_8_mark_model_as_valid_cmd,
     dag=dag)
 
-task_2_generate_id_files_training.set_upstream(task_1_truncate_tables)
-task_3_run_basic_preprocessor.set_upstream(task_2_generate_id_files_training)
+task_2_truncate_tables.set_upstream(task_1_generate_id_files_training)
+task_3_run_basic_preprocessor.set_upstream(task_2_truncate_tables)
 task_4_move_preproc_metadata.set_upstream(task_3_run_basic_preprocessor)
 task_5_run_advanced_preprocessor.set_upstream(task_4_move_preproc_metadata)
 task_6_move_scaled_features_metadata.set_upstream(task_5_run_advanced_preprocessor)
