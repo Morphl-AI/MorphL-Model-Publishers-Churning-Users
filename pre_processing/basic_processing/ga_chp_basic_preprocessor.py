@@ -319,7 +319,7 @@ def main():
     higher_session_counts_df = spark_session.sql(higher_session_counts_sql)
     higher_session_counts_df.createOrReplaceTempView('higher_session_counts')
 
-    grouped_by_client_id_sql_parts = [
+    grouped_by_client_id_before_dedup_sql_parts = [
         'SELECT',
         'client_id,',
         'SUM(pageviews) OVER (PARTITION BY client_id) AS pageviews,'
@@ -335,11 +335,16 @@ def main():
         'FIRST_VALUE(is_tablet) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS is_tablet,'
         'FIRST_VALUE(session_count) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS session_count,'
         'FIRST_VALUE(days_since_last_session) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS days_since_last_session,',
+        'ROW_NUMBER() OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS rownum,',
         'AVG(days_since_last_session) OVER (PARTITION BY client_id) AS avgdays',
         'FROM',
         'higher_session_counts'
     ]
-    grouped_by_client_id_sql = ' '.join(grouped_by_client_id_sql_parts)
+    grouped_by_client_id_before_dedup_sql = ' '.join(grouped_by_client_id_before_dedup_sql_parts)
+    grouped_by_client_id_before_dedup_df = spark_session.sql(grouped_by_client_id_before_dedup_sql)
+    grouped_by_client_id_before_dedup_df.createOrReplaceTempView('grouped_by_client_id_before_dedup')
+
+    grouped_by_client_id_sql = 'SELECT * FROM grouped_by_client_id_before_dedup WHERE rownum = 1'
     grouped_by_client_id_df = spark_session.sql(grouped_by_client_id_sql)
     grouped_by_client_id_df.createOrReplaceTempView('grouped_by_client_id')
 
