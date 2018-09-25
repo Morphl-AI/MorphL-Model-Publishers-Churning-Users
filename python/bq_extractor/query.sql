@@ -20,10 +20,10 @@ FROM(
     SUM(CASE WHEN totals.pageViews IS NOT NULL THEN totals.pageViews ELSE 0 END) as pageViews,
     ANY_VALUE(device.deviceCategory) as device,
     ARRAY_AGG(DISTINCT date ORDER BY date DESC) session_dates
-  FROM morphl-212711.92806566.ga_sessions_20180918
+  FROM morphl-projectid.ga_sessions_20180918
   WHERE totals.visits = 1
     AND clientId IS NOT NULL
-    AND ARRAY_LENGTH(ARRAY((SELECT DISTINCT page.hostname FROM UNNEST(hits) hits WHERE page.hostname = 'www.carolinebergeriksen.no'))) > 0
+    AND ARRAY_LENGTH(ARRAY((SELECT DISTINCT page.hostname FROM UNNEST(hits) hits WHERE page.hostname = 'www.website.com'))) > 0
   GROUP BY clientId
   ORDER BY sessions ASC
 ) WHERE sessions > 1
