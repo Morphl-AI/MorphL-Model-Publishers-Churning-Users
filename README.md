@@ -59,6 +59,8 @@ It is responsible for authenticating to the Google Analytics API v4 using a serv
 
 The connector runs daily and it can also be used to retrieve historical data (for backfilling).
 
+You can read about integrating the MorphL data science project with Cassandra [here](cassandra_schema/README.md).
+
 ### Training Pipeline
 
 All components from this pipeline are run on a weekly basis.
