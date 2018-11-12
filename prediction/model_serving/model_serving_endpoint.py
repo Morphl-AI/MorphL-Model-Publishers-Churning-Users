@@ -1,6 +1,7 @@
 from os import getenv
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
+from cassandra.query import SimpleStatement
 
 from flask import (render_template as rt,
                    Flask, request, redirect, url_for, session, jsonify)
@@ -24,7 +25,7 @@ class Cassandra:
         self.MORPHL_CASSANDRA_KEYSPACE = getenv('MORPHL_CASSANDRA_KEYSPACE')
 
         self.QUERY = 'SELECT * FROM ga_chp_predictions WHERE client_id = ? LIMIT 1'
-
+    
         self.CASS_REQ_TIMEOUT = 3600.0
 
         self.auth_provider = PlainTextAuthProvider(
@@ -36,10 +37,26 @@ class Cassandra:
         self.session.default_fetch_size = 1
 
         self.prep_stmt = self.session.prepare(self.QUERY)
-
+     
     def retrieve_prediction(self, client_id):
         bind_list = [client_id]
         return self.session.execute(self.prep_stmt, bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
+
+    def retrieve_predictions(self, paging_state=''):
+        query = "SELECT * FROM ga_chp_predictions"
+        statement = SimpleStatement(query, fetch_size=100)
+
+        if paging_state == '':
+            previous_paging_state = bytes.fromhex(paging_state)
+            results = self.session.execute(statement, paging_state=previous_paging_state)
+        else:
+            results = self.session.execute(statement)
+
+        predictions = {}
+        predictions['next_paging_state'] = results.paging_state.hex() if results.has_more_pages == True else ''
+        predictions['values'] = results._current_rows
+
+        return predictions
 
 
 """
@@ -134,6 +151,16 @@ def get_prediction(client_id):
 
     return jsonify(prediction=p_dict)
 
+
+@app.route('/getpredictions', methods=['POST'])
+def get_predictions():
+
+    if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
+        return jsonify(error='Unathorized request')
+
+
+    
+    return jsonify(app.config['CASSANDRA'].retrieve_predictions())
 
 if __name__ == '__main__':
     app.config['CASSANDRA'] = Cassandra()
