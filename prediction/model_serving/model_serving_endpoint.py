@@ -2,6 +2,7 @@ from os import getenv
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.query import SimpleStatement
+from cassandra.protocol import ProtocolException
 
 from flask import (render_template as rt,
                    Flask, request, redirect, url_for, session, jsonify)
@@ -45,16 +46,27 @@ class Cassandra:
     def retrieve_predictions(self, paging_state=''):
         query = "SELECT * FROM ga_chp_predictions"
         statement = SimpleStatement(query, fetch_size=100)
+        predictions = {}
 
-        if paging_state == '':
+        if paging_state != '':
+            if not re.match('^[a-zA-Z0-9_]+$', paging_state):
+                predictions['error'] = 1
+                return predictions
+
             previous_paging_state = bytes.fromhex(paging_state)
-            results = self.session.execute(statement, paging_state=previous_paging_state)
+
+            try:
+                results = self.session.execute(statement, paging_state=previous_paging_state)
+            except ProtocolException:
+                predictions['error'] = 1
+                return predictions
+
         else:
             results = self.session.execute(statement)
 
-        predictions = {}
-        predictions['next_paging_state'] = results.paging_state.hex() if results.has_more_pages == True else ''
+        predictions['next_paging_state'] = results.paging_state.hex() if results.has_more_pages == True else 0
         predictions['values'] = results._current_rows
+        predictions['error'] = 0
 
         return predictions
 
@@ -158,10 +170,16 @@ def get_predictions():
     if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
         return jsonify(error='Unathorized request')
 
+    if request.form.get('page') is None:
+        return jsonify(app.config['CASSANDRA'].retrieve_predictions())
 
-    
-    return jsonify(app.config['CASSANDRA'].retrieve_predictions())
+    predictions = app.config['CASSANDRA'].retrieve_predictions(paging_state=request.form.get('page'))
 
+    if predictions['error'] == 1:
+        return jsonify(error='Bad request')
+
+    return jsonify(predictions)
+ 
 if __name__ == '__main__':
     app.config['CASSANDRA'] = Cassandra()
     app.config['API'] = API()
