@@ -53,8 +53,8 @@ class API:
         self.MORPHL_API_KEY = getenv('MORPHL_API_KEY')
         self.MORPHL_API_SECRET = getenv('MORPHL_API_SECRET')
         self.MORPHL_API_JWT_SECRET = getenv('MORPHL_API_JWT_SECRET')
-        # Set JWT expiration date at 7 days
-        self.JWT_EXP_DELTA_DAYS = 7
+        # Set JWT expiration date at 30 days
+        self.JWT_EXP_DELTA_DAYS = 30
 
     def verify_keys(self, api_key, api_secret):
         return api_key == self.MORPHL_API_KEY and api_secret == self.MORPHL_API_SECRET
@@ -117,7 +117,7 @@ def get_prediction(client_id):
     if len(p) == 0:
         p_dict['error'] = 'N/A'
     else:
-        p_dict['result'] = p[0].prediction
+        p_dict['churning'] = p[0].prediction
 
     return jsonify(prediction=p_dict)
 
