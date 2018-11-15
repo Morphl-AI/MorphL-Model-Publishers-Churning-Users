@@ -6,6 +6,7 @@ from cassandra.protocol import ProtocolException
 
 from flask import (render_template as rt,
                    Flask, request, redirect, url_for, session, jsonify)
+from flask_cors import CORS
 
 from gevent.pywsgi import WSGIServer
 
@@ -26,7 +27,6 @@ class Cassandra:
         self.MORPHL_CASSANDRA_KEYSPACE = getenv('MORPHL_CASSANDRA_KEYSPACE')
 
         self.QUERY = 'SELECT * FROM ga_chp_predictions WHERE client_id = ? LIMIT 1'
-    
         self.CASS_REQ_TIMEOUT = 3600.0
 
         self.auth_provider = PlainTextAuthProvider(
@@ -38,7 +38,7 @@ class Cassandra:
         self.session.default_fetch_size = 1
 
         self.prep_stmt = self.session.prepare(self.QUERY)
-     
+        
     def retrieve_prediction(self, client_id):
         bind_list = [client_id]
         return self.session.execute(self.prep_stmt, bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
@@ -56,7 +56,8 @@ class Cassandra:
             previous_paging_state = bytes.fromhex(paging_state)
 
             try:
-                results = self.session.execute(statement, paging_state=previous_paging_state)
+                results = self.session.execute(
+                    statement, paging_state=previous_paging_state)
             except ProtocolException:
                 predictions['error'] = 1
                 return predictions
@@ -64,7 +65,8 @@ class Cassandra:
         else:
             results = self.session.execute(statement)
 
-        predictions['next_paging_state'] = results.paging_state.hex() if results.has_more_pages == True else 0
+        predictions['next_paging_state'] = results.paging_state.hex(
+        ) if results.has_more_pages == True else 0
         predictions['values'] = results._current_rows
         predictions['error'] = 0
 
@@ -114,6 +116,7 @@ class API:
 
 
 app = Flask(__name__)
+CORS(app)
 
 # @todo Check request origin for all API requests
 
@@ -125,7 +128,7 @@ def main():
 
 @app.route("/dashboard/login", methods=['POST'])
 def authorize_login():
-
+   
     if request.form.get('username') is None or request.form.get('password') is None:
         return jsonify(error='Missing username or password')
 
@@ -140,7 +143,6 @@ def verify_token():
 
     if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
         return jsonify(error="Token invalid")
-    
     return jsonify(error=0)
 
 
@@ -173,13 +175,15 @@ def get_predictions():
     if request.form.get('page') is None:
         return jsonify(app.config['CASSANDRA'].retrieve_predictions())
 
-    predictions = app.config['CASSANDRA'].retrieve_predictions(paging_state=request.form.get('page'))
+    predictions = app.config['CASSANDRA'].retrieve_predictions(
+        paging_state=request.form.get('page'))
 
     if predictions['error'] == 1:
         return jsonify(error='Bad request')
 
     return jsonify(predictions)
- 
+
+
 if __name__ == '__main__':
     app.config['CASSANDRA'] = Cassandra()
     app.config['API'] = API()
