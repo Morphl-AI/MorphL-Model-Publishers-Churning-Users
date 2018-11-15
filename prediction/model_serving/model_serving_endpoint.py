@@ -130,31 +130,31 @@ def main():
 def authorize_login():
    
     if request.form.get('username') is None or request.form.get('password') is None:
-        return jsonify(error='Missing username or password')
+        return jsonify(status=0, error='Missing username or password')
 
     if app.config['API'].verify_login_credentials(request.form['username'], request.form['password']) == False:
-        return jsonify(error='Invalid username or password')
+        return jsonify(status=0, error='Invalid username or password')
 
-    return jsonify(token=app.config['API'].generate_jwt())
+    return jsonify(status=1, token=app.config['API'].generate_jwt())
 
 
 @app.route("/dashboard/verify-token", methods=['GET'])
 def verify_token():
 
     if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
-        return jsonify(error="Token invalid")
-    return jsonify(error=0)
+        return jsonify(status=0, error="Token invalid")
+    return jsonify(status=1)
 
 
 @app.route('/getprediction/<client_id>')
 def get_prediction(client_id):
     # Validate authorization header with JWT
     if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
-        return jsonify(error='Unauthorized request')
+        return jsonify(status=0, error='Unauthorized request')
 
     # Validate client id (alphanumeric with dots)
     if not re.match('^[a-zA-Z0-9.]+$', client_id):
-        return jsonify(error='Invalid client id')
+        return jsonify(status=0, error='Invalid client id')
 
     p = app.config['CASSANDRA'].retrieve_prediction(client_id)
     p_dict = {'client_id': client_id}
@@ -163,14 +163,14 @@ def get_prediction(client_id):
     else:
         p_dict['result'] = p[0].prediction
 
-    return jsonify(prediction=p_dict)
+    return jsonify(status=1, prediction=p_dict)
 
 
 @app.route('/getpredictions', methods=['POST'])
 def get_predictions():
 
     if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
-        return jsonify(error='Unathorized request')
+        return jsonify(status=0, error='Unathorized request')
 
     if request.form.get('page') is None:
         return jsonify(app.config['CASSANDRA'].retrieve_predictions())
@@ -179,7 +179,7 @@ def get_predictions():
         paging_state=request.form.get('page'))
 
     if predictions['error'] == 1:
-        return jsonify(error='Bad request')
+        return jsonify(status=0, error='Bad request')
 
     return jsonify(predictions)
 
