@@ -50,7 +50,8 @@ class Cassandra:
 
         if paging_state != '':
             if not re.match('^[a-zA-Z0-9_]+$', paging_state):
-                predictions['error'] = 1
+                predictions['status'] = 0
+                predictions['error'] = 'Invalid page format.'
                 return predictions
 
             previous_paging_state = bytes.fromhex(paging_state)
@@ -59,7 +60,8 @@ class Cassandra:
                 results = self.session.execute(
                     statement, paging_state=previous_paging_state)
             except ProtocolException:
-                predictions['error'] = 1
+                predictions['status'] = 0
+                predictions['error'] = 'Invalid pagination request.'
                 return predictions
 
         else:
@@ -67,8 +69,8 @@ class Cassandra:
 
         predictions['next_paging_state'] = results.paging_state.hex(
         ) if results.has_more_pages == True else 0
-        predictions['values'] = results._current_rows
-        predictions['error'] = 0
+        predictions['predictions'] = results._current_rows
+        predictions['status'] = 1
 
         return predictions
 
@@ -157,13 +159,11 @@ def get_prediction(client_id):
         return jsonify(status=0, error='Invalid client id.')
 
     p = app.config['CASSANDRA'].retrieve_prediction(client_id)
-    p_dict = {'client_id': client_id}
-    if len(p) == 0:
-        p_dict['error'] = 'N/A'
-    else:
-        p_dict['result'] = p[0].prediction
 
-    return jsonify(status=1, prediction=p_dict)
+    if len(p) == 0:
+        return jsonify(status=0, error='N/A')
+
+    return jsonify(status=1, prediction={'client_id': client_id, 'prediction': p[0].prediction})
 
 
 @app.route('/getpredictions', methods=['POST'])
@@ -181,7 +181,7 @@ def get_predictions():
     if predictions['error'] == 1:
         return jsonify(status=0, error='Bad request.')
 
-    return jsonify(predictions)
+    return jsonify(predictions, status=1)
 
 
 if __name__ == '__main__':
