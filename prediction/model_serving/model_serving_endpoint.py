@@ -58,14 +58,15 @@ class Cassandra:
 
             try:
                 results = self.session.execute(
-                    statement, paging_state=previous_paging_state)
+                    statement, paging_state=previous_paging_state, timeout=self.CASS_REQ_TIMEOUT)
             except ProtocolException:
                 predictions['status'] = 0
                 predictions['error'] = 'Invalid pagination request.'
                 return predictions
 
         else:
-            results = self.session.execute(statement)
+            results = self.session.execute(
+                statement, timeout=self.CASS_REQ_TIMEOUT)
 
         predictions['next_paging_state'] = results.paging_state.hex(
         ) if results.has_more_pages == True else 0
@@ -73,6 +74,21 @@ class Cassandra:
         predictions['status'] = 1
 
         return predictions
+
+    def get_predictions_number(self):
+        query = "SELECT COUNT(*) FROM ga_chp_predictions"
+
+        statement = SimpleStatement(query)
+
+        return self.session.execute(statement, timeout=self.CASS_REQ_TIMEOUT)._current_rows[0].count
+
+    # to-do, find a way to get this data without allow filtering
+    def get_churned_number(self):
+        query = "SELECT COUNT(*) FROM ga_chp_predictions WHERE prediction > 0.5 ALLOW FILTERING"
+
+        statement = SimpleStatement(query)
+
+        return self.session.execute(statement, timeout=self.CASS_REQ_TIMEOUT)._current_rows[0].count
 
 
 """
@@ -179,6 +195,19 @@ def get_predictions():
         paging_state=request.args.get('page'))
 
     return jsonify(predictions)
+
+
+@app.route('/getpredictionstatistics', methods=['GET'])
+def get_prediction_statistics():
+
+    if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
+        return jsonify(status=0, error='Unathorized request.')
+
+    predictions_number = app.config['CASSANDRA'].get_predictions_number()
+    churned_number = app.config['CASSANDRA'].get_churned_number()
+    not_churned_number = predictions_number - churned_number
+
+    return jsonify(predictions_number=predictions_number, churned_number=churned_number, not_churned_number=not_churned_number)
 
 
 if __name__ == '__main__':
