@@ -166,22 +166,19 @@ def get_prediction(client_id):
     return jsonify(status=1, prediction={'client_id': client_id, 'prediction': p[0].prediction})
 
 
-@app.route('/getpredictions', methods=['POST'])
+@app.route('/getpredictions', methods=['GET'])
 def get_predictions():
 
     if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
         return jsonify(status=0, error='Unathorized request.')
 
-    if request.form.get('page') is None:
+    if request.args.get('page') is None:
         return jsonify(app.config['CASSANDRA'].retrieve_predictions())
 
     predictions = app.config['CASSANDRA'].retrieve_predictions(
-        paging_state=request.form.get('page'))
+        paging_state=request.args.get('page'))
 
-    if predictions['error'] == 1:
-        return jsonify(status=0, error='Bad request.')
-
-    return jsonify(predictions, status=1)
+    return jsonify(predictions)
 
 
 if __name__ == '__main__':
