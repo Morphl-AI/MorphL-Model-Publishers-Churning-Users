@@ -207,7 +207,7 @@ def get_prediction_statistics():
     churned_number = app.config['CASSANDRA'].get_churned_number()
     not_churned_number = predictions_number - churned_number
 
-    return jsonify(predictions_number=predictions_number, churned_number=churned_number, not_churned_number=not_churned_number)
+    return jsonify(predictions_number=predictions_number, churned_number=churned_number, not_churned_number=not_churned_number, status=1)
 
 
 if __name__ == '__main__':
