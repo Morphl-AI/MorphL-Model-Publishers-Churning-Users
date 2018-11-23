@@ -177,7 +177,7 @@ def get_prediction(client_id):
     p = app.config['CASSANDRA'].retrieve_prediction(client_id)
 
     if len(p) == 0:
-        return jsonify(status=0, error='N/A')
+        return jsonify(status=0, error='No associated predictions found for that ID.')
 
     return jsonify(status=1, prediction={'client_id': client_id, 'prediction': p[0].prediction})
 
