@@ -105,7 +105,7 @@ def authorize():
 @app.route('/getprediction/<client_id>')
 def get_prediction(client_id):
     # Validate authorization header with JWT
-    if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
+    if request.headers.get('Authorization') is None or !app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(error='Unauthorized request')
 
     # Validate client id (alphanumeric with dots)
