@@ -186,7 +186,7 @@ def get_prediction(client_id):
 def get_predictions():
 
     if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
-        return jsonify(status=0, error='Unathorized request.')
+        return jsonify(status=0, error='Unauthorized request.')
 
     if request.args.get('page') is None:
         return jsonify(app.config['CASSANDRA'].retrieve_predictions())
@@ -201,7 +201,7 @@ def get_predictions():
 def get_prediction_statistics():
 
     if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
-        return jsonify(status=0, error='Unathorized request.')
+        return jsonify(status=0, error='Unauthorized request.')
 
     predictions_number = app.config['CASSANDRA'].get_predictions_number()
     churned_number = app.config['CASSANDRA'].get_churned_number()
