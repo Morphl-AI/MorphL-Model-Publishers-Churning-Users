@@ -115,6 +115,9 @@ CREATE TABLE morphl.ga_chp_valid_models (
   day_as_str text,
   tstamp timestamp,
   unique_hash text,
+  threshold double,
+  accuracy double,
+  loss double,
   is_model_valid boolean,
   PRIMARY KEY ((always_zero), day_as_str, tstamp, unique_hash)
 ) WITH CLUSTERING ORDER BY (day_as_str DESC, tstamp DESC);
