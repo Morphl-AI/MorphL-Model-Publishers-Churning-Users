@@ -84,7 +84,6 @@ class Cassandra:
 
         return self.session.execute(statement, timeout=self.CASS_REQ_TIMEOUT)._current_rows[0].count
 
-    # to-do, find a way to get this data without allow filtering
     def get_churned_number(self):
         query = "SELECT COUNT(*) FROM ga_chp_predictions WHERE prediction > 0.5 ALLOW FILTERING"
 
@@ -94,7 +93,7 @@ class Cassandra:
 
     def get_model_statistics(self):
 
-        query = "SELECT accuracy, loss, day_as_str FROM ga_chp_valid_models WHERE is_model_valid = True"
+        query = "SELECT accuracy, loss, day_as_str FROM ga_chp_valid_models WHERE is_model_valid = True LIMIT 20 ALLOW FILTERING;"
 
         statement = SimpleStatement(query)
 
