@@ -151,7 +151,7 @@ def authorize_login():
     if request.form.get('username') is None or request.form.get('password') is None:
         return jsonify(status=0, error='Missing username or password.')
 
-    if app.config['API'].verify_login_credentials(request.form['username'], request.form['password']) == False:
+    if not app.config['API'].verify_login_credentials(request.form['username'], request.form['password']):
         return jsonify(status=0, error='Invalid username or password.')
 
     return jsonify(status=1, token=app.config['API'].generate_jwt())
@@ -160,7 +160,7 @@ def authorize_login():
 @app.route("/dashboard/verify-token", methods=['GET'])
 def verify_token():
 
-    if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
+    if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(status=0, error="Token invalid.")
     return jsonify(status=1)
 
@@ -186,7 +186,7 @@ def get_prediction(client_id):
 @app.route('/getpredictions', methods=['GET'])
 def get_predictions():
 
-    if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
+    if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(status=0, error='Unauthorized request.')
 
     if request.args.get('page') is None:
@@ -201,7 +201,7 @@ def get_predictions():
 @app.route('/getpredictionstatistics', methods=['GET'])
 def get_prediction_statistics():
 
-    if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
+    if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(status=0, error='Unauthorized request.')
 
     predictions_number = app.config['CASSANDRA'].get_predictions_number()
