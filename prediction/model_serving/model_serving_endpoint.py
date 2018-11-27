@@ -4,6 +4,8 @@ from cassandra.auth import PlainTextAuthProvider
 from cassandra.query import SimpleStatement
 from cassandra.protocol import ProtocolException
 
+from operator import itemgetter
+
 from flask import (render_template as rt,
                    Flask, request, redirect, url_for, session, jsonify)
 from flask_cors import CORS
@@ -89,6 +91,17 @@ class Cassandra:
         statement = SimpleStatement(query)
 
         return self.session.execute(statement, timeout=self.CASS_REQ_TIMEOUT)._current_rows[0].count
+
+    def get_model_statistics(self):
+
+        query = "SELECT accuracy, loss, day_as_str FROM ga_chp_valid_models WHERE is_model_valid = True"
+
+        statement = SimpleStatement(query)
+
+        data_rows = self.session.execute(
+            statement, timeout=self.CASS_REQ_TIMEOUT)
+
+        return data_rows._current_rows
 
 
 """
@@ -205,9 +218,10 @@ def get_prediction_statistics():
 
     predictions_number = app.config['CASSANDRA'].get_predictions_number()
     churned_number = app.config['CASSANDRA'].get_churned_number()
+    modelStatistics = app.config['CASSANDRA'].get_model_statistics()
     not_churned_number = predictions_number - churned_number
 
-    return jsonify(predictions_number=predictions_number, churned_number=churned_number, not_churned_number=not_churned_number, status=1)
+    return jsonify(predictions_number=predictions_number, churned_number=churned_number, not_churned_number=not_churned_number, modelStatistics=modelStatistics, status=1)
 
 
 if __name__ == '__main__':
