@@ -112,16 +112,17 @@ class Cassandra:
 class API:
     def __init__(self):
         self.API_DOMAIN = getenv('API_DOMAIN')
-        self.DASHBOARD_USERNAME = getenv('DASHBOARD_USERNAME')
-        self.DASHBOARD_PASSWORD = getenv('DASHBOARD_PASSWORD')
+        self.MORPHL_DASHBOARD_USERNAME = getenv('MORPHL_DASHBOARD_USERNAME')
+        self.MORPHL_DASHBOARD_PASSWORD = getenv('MORPHL_DASHBOARD_PASSWORD')
         self.MORPHL_API_KEY = getenv('MORPHL_API_KEY')
         self.MORPHL_API_SECRET = getenv('MORPHL_API_SECRET')
         self.MORPHL_API_JWT_SECRET = getenv('MORPHL_API_JWT_SECRET')
-        # Set JWT expiration date at 1 days
-        self.JWT_EXP_DELTA_DAYS = 1
+
+        # Set JWT expiration date at 30 days
+        self.JWT_EXP_DELTA_DAYS = 30
 
     def verify_login_credentials(self, username, password):
-        return username == self.DASHBOARD_USERNAME and password == self.DASHBOARD_PASSWORD
+        return username == self.MORPHL_DASHBOARD_USERNAME and password == self.MORPHL_DASHBOARD_PASSWORD
 
     def verify_keys(self, api_key, api_secret):
         return api_key == self.MORPHL_API_KEY and api_secret == self.MORPHL_API_SECRET
@@ -163,7 +164,7 @@ def authorize_login():
     if request.form.get('username') is None or request.form.get('password') is None:
         return jsonify(status=0, error='Missing username or password.')
 
-    if app.config['API'].verify_login_credentials(request.form['username'], request.form['password']) == False:
+    if not app.config['API'].verify_login_credentials(request.form['username'], request.form['password']):
         return jsonify(status=0, error='Invalid username or password.')
 
     return jsonify(status=1, token=app.config['API'].generate_jwt())
@@ -172,7 +173,7 @@ def authorize_login():
 @app.route("/dashboard/verify-token", methods=['GET'])
 def verify_token():
 
-    if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
+    if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(status=0, error="Token invalid.")
     return jsonify(status=1)
 
@@ -180,8 +181,8 @@ def verify_token():
 @app.route('/getprediction/<client_id>')
 def get_prediction(client_id):
     # Validate authorization header with JWT
-    if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
-        return jsonify(status=0, error='Unauthorized request.')
+    if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
+        return jsonify(status=0, error='Unauthorized request')
 
     # Validate client id (alphanumeric with dots)
     if not re.match('^[a-zA-Z0-9.]+$', client_id):
@@ -198,7 +199,7 @@ def get_prediction(client_id):
 @app.route('/getpredictions', methods=['GET'])
 def get_predictions():
 
-    if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
+    if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(status=0, error='Unauthorized request.')
 
     if request.args.get('page') is None:
@@ -213,7 +214,7 @@ def get_predictions():
 @app.route('/getpredictionstatistics', methods=['GET'])
 def get_prediction_statistics():
 
-    if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
+    if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(status=0, error='Unauthorized request.')
 
     predictions_number = app.config['CASSANDRA'].get_predictions_number()
