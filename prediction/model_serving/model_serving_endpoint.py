@@ -99,8 +99,8 @@ class Cassandra:
 class API:
     def __init__(self):
         self.API_DOMAIN = getenv('API_DOMAIN')
-        self.DASHBOARD_USERNAME = getenv('DASHBOARD_USERNAME')
-        self.DASHBOARD_PASSWORD = getenv('DASHBOARD_PASSWORD')
+        self.MORPHL_DASHBOARD_USERNAME = getenv('MORPHL_DASHBOARD_USERNAME')
+        self.MORPHL_DASHBOARD_PASSWORD = getenv('MORPHL_DASHBOARD_PASSWORD')
         self.MORPHL_API_KEY = getenv('MORPHL_API_KEY')
         self.MORPHL_API_SECRET = getenv('MORPHL_API_SECRET')
         self.MORPHL_API_JWT_SECRET = getenv('MORPHL_API_JWT_SECRET')
@@ -109,7 +109,7 @@ class API:
         self.JWT_EXP_DELTA_DAYS = 30
 
     def verify_login_credentials(self, username, password):
-        return username == self.DASHBOARD_USERNAME and password == self.DASHBOARD_PASSWORD
+        return username == self.MORPHL_DASHBOARD_USERNAME and password == self.MORPHL_DASHBOARD_PASSWORD
 
     def verify_keys(self, api_key, api_secret):
         return api_key == self.MORPHL_API_KEY and api_secret == self.MORPHL_API_SECRET
