@@ -1,9 +1,12 @@
 from os import getenv
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
+from cassandra.query import SimpleStatement
+from cassandra.protocol import ProtocolException
 
 from flask import (render_template as rt,
                    Flask, request, redirect, url_for, session, jsonify)
+from flask_cors import CORS
 
 from gevent.pywsgi import WSGIServer
 
@@ -24,7 +27,6 @@ class Cassandra:
         self.MORPHL_CASSANDRA_KEYSPACE = getenv('MORPHL_CASSANDRA_KEYSPACE')
 
         self.QUERY = 'SELECT * FROM ga_chp_predictions WHERE client_id = ? LIMIT 1'
-
         self.CASS_REQ_TIMEOUT = 3600.0
 
         self.auth_provider = PlainTextAuthProvider(
@@ -41,6 +43,53 @@ class Cassandra:
         bind_list = [client_id]
         return self.session.execute(self.prep_stmt, bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
 
+    def retrieve_predictions(self, paging_state=''):
+        query = "SELECT * FROM ga_chp_predictions"
+        statement = SimpleStatement(query, fetch_size=100)
+        predictions = {}
+
+        if paging_state != '':
+            if not re.match('^[a-zA-Z0-9_]+$', paging_state):
+                predictions['status'] = 0
+                predictions['error'] = 'Invalid page format.'
+                return predictions
+
+            previous_paging_state = bytes.fromhex(paging_state)
+
+            try:
+                results = self.session.execute(
+                    statement, paging_state=previous_paging_state, timeout=self.CASS_REQ_TIMEOUT)
+            except ProtocolException:
+                predictions['status'] = 0
+                predictions['error'] = 'Invalid pagination request.'
+                return predictions
+
+        else:
+            results = self.session.execute(
+                statement, timeout=self.CASS_REQ_TIMEOUT)
+
+        predictions['next_paging_state'] = results.paging_state.hex(
+        ) if results.has_more_pages == True else 0
+        predictions['predictions'] = results._current_rows
+        predictions['status'] = 1
+
+        return predictions
+
+    def get_predictions_number(self):
+        query = "SELECT COUNT(*) FROM ga_chp_predictions"
+
+        statement = SimpleStatement(query)
+
+        return self.session.execute(statement, timeout=self.CASS_REQ_TIMEOUT)._current_rows[0].count
+
+    # to-do, find a way to get this data without allow filtering
+    def get_churned_number(self):
+        query = "SELECT COUNT(*) FROM ga_chp_predictions WHERE prediction > 0.5 ALLOW FILTERING"
+
+        statement = SimpleStatement(query)
+
+        return self.session.execute(statement, timeout=self.CASS_REQ_TIMEOUT)._current_rows[0].count
+
 
 """
     API class for verifying credentials and handling JWTs.
@@ -50,11 +99,17 @@ class Cassandra:
 class API:
     def __init__(self):
         self.API_DOMAIN = getenv('API_DOMAIN')
+        self.DASHBOARD_USERNAME = getenv('DASHBOARD_USERNAME')
+        self.DASHBOARD_PASSWORD = getenv('DASHBOARD_PASSWORD')
         self.MORPHL_API_KEY = getenv('MORPHL_API_KEY')
         self.MORPHL_API_SECRET = getenv('MORPHL_API_SECRET')
         self.MORPHL_API_JWT_SECRET = getenv('MORPHL_API_JWT_SECRET')
+
         # Set JWT expiration date at 30 days
         self.JWT_EXP_DELTA_DAYS = 30
+
+    def verify_login_credentials(self, username, password):
+        return username == self.DASHBOARD_USERNAME and password == self.DASHBOARD_PASSWORD
 
     def verify_keys(self, api_key, api_secret):
         return api_key == self.MORPHL_API_KEY and api_secret == self.MORPHL_API_SECRET
@@ -80,6 +135,7 @@ class API:
 
 
 app = Flask(__name__)
+CORS(app)
 
 # @todo Check request origin for all API requests
 
@@ -89,37 +145,70 @@ def main():
     return "MorphL Predictions API"
 
 
-@app.route('/authorize', methods=['POST'])
-def authorize():
+@app.route("/dashboard/login", methods=['POST'])
+def authorize_login():
 
-    if request.form.get('api_key') is None or request.form.get('api_secret') is None:
-        return jsonify(error='Missing API key or secret')
+    if request.form.get('username') is None or request.form.get('password') is None:
+        return jsonify(status=0, error='Missing username or password.')
 
-    if app.config['API'].verify_keys(
-            request.form['api_key'], request.form['api_secret']) == False:
-        return jsonify(error='Invalid API key or secret')
+    if app.config['API'].verify_login_credentials(request.form['username'], request.form['password']) == False:
+        return jsonify(status=0, error='Invalid username or password.')
 
-    return jsonify(token=app.config['API'].generate_jwt())
+    return jsonify(status=1, token=app.config['API'].generate_jwt())
+
+
+@app.route("/dashboard/verify-token", methods=['GET'])
+def verify_token():
+
+    if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
+        return jsonify(status=0, error="Token invalid.")
+    return jsonify(status=1)
 
 
 @app.route('/getprediction/<client_id>')
 def get_prediction(client_id):
     # Validate authorization header with JWT
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
-        return jsonify(error='Unauthorized request')
+        return jsonify(status=0, error='Unauthorized request')
 
     # Validate client id (alphanumeric with dots)
     if not re.match('^[a-zA-Z0-9.]+$', client_id):
-        return jsonify(error='Invalid client id')
+        return jsonify(status=0, error='Invalid client id.')
 
     p = app.config['CASSANDRA'].retrieve_prediction(client_id)
-    p_dict = {'client_id': client_id}
-    if len(p) == 0:
-        p_dict['error'] = 'N/A'
-    else:
-        p_dict['churning'] = p[0].prediction
 
-    return jsonify(prediction=p_dict)
+    if len(p) == 0:
+        return jsonify(status=0, error='No associated predictions found for that ID.')
+
+    return jsonify(status=1, prediction={'client_id': client_id, 'prediction': p[0].prediction})
+
+
+@app.route('/getpredictions', methods=['GET'])
+def get_predictions():
+
+    if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
+        return jsonify(status=0, error='Unauthorized request.')
+
+    if request.args.get('page') is None:
+        return jsonify(app.config['CASSANDRA'].retrieve_predictions())
+
+    predictions = app.config['CASSANDRA'].retrieve_predictions(
+        paging_state=request.args.get('page'))
+
+    return jsonify(predictions)
+
+
+@app.route('/getpredictionstatistics', methods=['GET'])
+def get_prediction_statistics():
+
+    if request.headers.get('Authorization') is None or app.config['API'].verify_jwt(request.headers['Authorization']) == False:
+        return jsonify(status=0, error='Unauthorized request.')
+
+    predictions_number = app.config['CASSANDRA'].get_predictions_number()
+    churned_number = app.config['CASSANDRA'].get_churned_number()
+    not_churned_number = predictions_number - churned_number
+
+    return jsonify(predictions_number=predictions_number, churned_number=churned_number, not_churned_number=not_churned_number, status=1)
 
 
 if __name__ == '__main__':
