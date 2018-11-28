@@ -181,7 +181,7 @@ def verify_token():
 def get_prediction(client_id):
     # Validate authorization header with JWT
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
-        return jsonify(status=0, error='Unauthorized request')
+        return jsonify(status=0, error='Unauthorized request.'), 401
 
     # Validate client id (alphanumeric with dots)
     if not re.match('^[a-zA-Z0-9.]+$', client_id):
@@ -199,7 +199,7 @@ def get_prediction(client_id):
 def get_predictions():
 
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
-        return jsonify(status=0, error='Unauthorized request.')
+        return jsonify(status=0, error='Unauthorized request.'), 401
 
     if request.args.get('page') is None:
         return jsonify(app.config['CASSANDRA'].retrieve_predictions())
@@ -217,7 +217,7 @@ def get_predictions():
 def get_prediction_statistics():
 
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
-        return jsonify(status=0, error='Unauthorized request.')
+        return jsonify(status=0, error='Unauthorized request.'), 401
 
     predictions_number = app.config['CASSANDRA'].get_predictions_number()
     churned_number = app.config['CASSANDRA'].get_churned_number()
