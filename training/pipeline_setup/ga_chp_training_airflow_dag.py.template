@@ -77,6 +77,7 @@ task_5_run_advanced_preprocessor_cmd = ' '.join(task_5_run_advanced_preprocessor
 task_6_move_scaled_features_metadata_cmd_parts = [
     f'DAY_AS_STR={day_as_str}',
     f'UNIQUE_HASH={unique_hash}',
+    f'MODELS_DIR=/opt/models',
     'bash /opt/ga_chp/pre_processing/ga_chp_move_metadata.sh ga_chp_scaled_features_training ']
 task_6_move_scaled_features_metadata_cmd = ' '.join(task_6_move_scaled_features_metadata_cmd_parts)
 
