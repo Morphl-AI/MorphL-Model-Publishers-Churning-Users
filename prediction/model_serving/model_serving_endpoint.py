@@ -226,9 +226,9 @@ def get_prediction_statistics():
 
     return jsonify(
         status=1,
-        predictions_number=predictions_number,
-        churned_number=churned_number,
-        not_churned_number=not_churned_number,
+        predictions=predictions_number,
+        churned=churned_number,
+        not_churned=not_churned_number,
         model_statistics=model_statistics
     )
 
