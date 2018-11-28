@@ -1,7 +1,7 @@
 from os import getenv
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
-from cassandra.query import SimpleStatement
+from cassandra.query import SimpleStatement, dict_factory
 from cassandra.protocol import ProtocolException
 
 from operator import itemgetter
@@ -36,71 +36,71 @@ class Cassandra:
             password=self.MORPHL_CASSANDRA_PASSWORD)
         self.cluster = Cluster(
             [self.MORPHL_SERVER_IP_ADDRESS], auth_provider=self.auth_provider)
-        self.session = self.cluster.connect(self.MORPHL_CASSANDRA_KEYSPACE)
-        self.session.default_fetch_size = 1
 
-        self.prep_stmt = self.session.prepare(self.QUERY)
+        self.session = self.cluster.connect(self.MORPHL_CASSANDRA_KEYSPACE)
+        self.session.row_factory = dict_factory
+        self.session.default_fetch_size = 100
+
+        self.prepare_statements()
+
+    def prepare_statements(self):
+        """
+            Prepare statements for database select queries
+        """
+        self.prep_stmts = {
+            'predictions': {},
+            'models': {}
+        }
+
+        template_for_single_row = 'SELECT * FROM ga_chp_predictions WHERE client_id = ? LIMIT 1'
+        template_for_multiple_rows = 'SELECT * FROM ga_chp_predictions'
+        template_for_count = 'SELECT COUNT(*) FROM ga_chp_predictions'
+        template_for_count_churned = 'SELECT COUNT(*) FROM ga_chp_predictions WHERE prediction > 0.5 ALLOW FILTERING'
+        template_for_models_rows = 'SELECT accuracy, loss, day_as_str FROM ga_chp_valid_models WHERE is_model_valid = True LIMIT 20 ALLOW FILTERING'
+
+        self.prep_stmts['predictions']['single'] = self.session.prepare(
+            template_for_single_row)
+        self.prep_stmts['predictions']['multiple'] = self.session.prepare(
+            template_for_multiple_rows)
+        self.prep_stmts['predictions']['count'] = self.session.prepare(
+            template_for_count)
+        self.prep_stmts['predictions']['count_churned'] = self.session.prepare(
+            template_for_count_churned)
+        self.prep_stmts['models']['multiple'] = self.session.prepare(
+            template_for_models_rows)
 
     def retrieve_prediction(self, client_id):
         bind_list = [client_id]
-        return self.session.execute(self.prep_stmt, bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
+        return self.session.execute(self.prep_stmts['predictions']['single'], bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
 
     def retrieve_predictions(self, paging_state=''):
-        query = "SELECT * FROM ga_chp_predictions"
-        statement = SimpleStatement(query, fetch_size=100)
-        predictions = {}
-
         if paging_state != '':
-            if not re.match('^[a-zA-Z0-9_]+$', paging_state):
-                predictions['status'] = 0
-                predictions['error'] = 'Invalid page format.'
-                return predictions
-
-            previous_paging_state = bytes.fromhex(paging_state)
-
             try:
+                previous_paging_state = bytes.fromhex(paging_state)
                 results = self.session.execute(
-                    statement, paging_state=previous_paging_state, timeout=self.CASS_REQ_TIMEOUT)
-            except ProtocolException:
-                predictions['status'] = 0
-                predictions['error'] = 'Invalid pagination request.'
-                return predictions
+                    self.prep_stmts['predictions']['multiple'], paging_state=previous_paging_state, timeout=self.CASS_REQ_TIMEOUT)
+            except (ValueError, ProtocolException):
+                return {'status': 0, 'error': 'Invalid pagination request.'}
 
         else:
             results = self.session.execute(
-                statement, timeout=self.CASS_REQ_TIMEOUT)
+                self.prep_stmts['predictions']['multiple'], timeout=self.CASS_REQ_TIMEOUT)
 
-        predictions['next_paging_state'] = results.paging_state.hex(
-        ) if results.has_more_pages == True else 0
-        predictions['predictions'] = results._current_rows
-        predictions['status'] = 1
-
-        return predictions
+        return {
+            'status': 1,
+            'predictions': results._current_rows,
+            'next_paging_state': results.paging_state.hex(
+            ) if results.has_more_pages == True else 0
+        }
 
     def get_predictions_number(self):
-        query = "SELECT COUNT(*) FROM ga_chp_predictions"
-
-        statement = SimpleStatement(query)
-
-        return self.session.execute(statement, timeout=self.CASS_REQ_TIMEOUT)._current_rows[0].count
+        return self.session.execute(self.prep_stmts['predictions']['count'], timeout=self.CASS_REQ_TIMEOUT)._current_rows[0]['count']
 
     def get_churned_number(self):
-        query = "SELECT COUNT(*) FROM ga_chp_predictions WHERE prediction > 0.5 ALLOW FILTERING"
-
-        statement = SimpleStatement(query)
-
-        return self.session.execute(statement, timeout=self.CASS_REQ_TIMEOUT)._current_rows[0].count
+        return self.session.execute(self.prep_stmts['predictions']['count_churned'], timeout=self.CASS_REQ_TIMEOUT)._current_rows[0]['count']
 
     def get_model_statistics(self):
-
-        query = "SELECT accuracy, loss, day_as_str FROM ga_chp_valid_models WHERE is_model_valid = True LIMIT 20 ALLOW FILTERING;"
-
-        statement = SimpleStatement(query)
-
-        data_rows = self.session.execute(
-            statement, timeout=self.CASS_REQ_TIMEOUT)
-
-        return data_rows._current_rows
+        return self.session.execute(self.prep_stmts['models']['multiple'], timeout=self.CASS_REQ_TIMEOUT)._current_rows
 
 
 """
@@ -192,7 +192,7 @@ def get_prediction(client_id):
     if len(p) == 0:
         return jsonify(status=0, error='No associated predictions found for that ID.')
 
-    return jsonify(status=1, prediction={'client_id': client_id, 'prediction': p[0].prediction})
+    return jsonify(status=1, prediction={'client_id': client_id, 'prediction': p[0]['prediction']})
 
 
 @app.route('/getpredictions', methods=['GET'])
@@ -203,6 +203,9 @@ def get_predictions():
 
     if request.args.get('page') is None:
         return jsonify(app.config['CASSANDRA'].retrieve_predictions())
+
+    if not re.match('^[a-zA-Z0-9_]+$', request.args.get('page')):
+        return jsonify(status=0, error='Invalid page format.')
 
     predictions = app.config['CASSANDRA'].retrieve_predictions(
         paging_state=request.args.get('page'))
@@ -218,10 +221,16 @@ def get_prediction_statistics():
 
     predictions_number = app.config['CASSANDRA'].get_predictions_number()
     churned_number = app.config['CASSANDRA'].get_churned_number()
-    modelStatistics = app.config['CASSANDRA'].get_model_statistics()
+    model_statistics = app.config['CASSANDRA'].get_model_statistics()
     not_churned_number = predictions_number - churned_number
 
-    return jsonify(predictions_number=predictions_number, churned_number=churned_number, not_churned_number=not_churned_number, modelStatistics=modelStatistics, status=1)
+    return jsonify(
+        status=1,
+        predictions_number=predictions_number,
+        churned_number=churned_number,
+        not_churned_number=not_churned_number,
+        model_statistics=model_statistics
+    )
 
 
 if __name__ == '__main__':
