@@ -157,6 +157,19 @@ def main():
     return "MorphL Predictions API"
 
 
+@app.route('/authorize', methods=['POST'])
+def authorize():
+
+    if request.form.get('api_key') is None or request.form.get('api_secret') is None:
+        return jsonify(error='Missing API key or secret')
+
+    if app.config['API'].verify_keys(
+            request.form['api_key'], request.form['api_secret']) == False:
+        return jsonify(error='Invalid API key or secret')
+
+    return jsonify(token=app.config['API'].generate_jwt())
+
+
 @app.route("/dashboard/login", methods=['POST'])
 def authorize_login():
 
