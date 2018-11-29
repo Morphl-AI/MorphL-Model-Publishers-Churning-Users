@@ -190,7 +190,7 @@ def verify_token():
     return jsonify(status=1)
 
 
-@app.route('/getprediction/<client_id>')
+@app.route('/churning/getprediction/<client_id>')
 def get_prediction(client_id):
     # Validate authorization header with JWT
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
@@ -208,7 +208,7 @@ def get_prediction(client_id):
     return jsonify(status=1, prediction={'client_id': client_id, 'prediction': p[0]['prediction']})
 
 
-@app.route('/getpredictions', methods=['GET'])
+@app.route('/churning/getpredictions', methods=['GET'])
 def get_predictions():
 
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
@@ -226,7 +226,7 @@ def get_predictions():
     return jsonify(predictions)
 
 
-@app.route('/getpredictionstatistics', methods=['GET'])
+@app.route('/churning/getpredictionstatistics', methods=['GET'])
 def get_prediction_statistics():
 
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
