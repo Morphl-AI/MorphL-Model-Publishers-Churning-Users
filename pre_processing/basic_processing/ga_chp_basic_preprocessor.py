@@ -519,12 +519,8 @@ def main():
         with open(CHURN_THRESHOLD_FILE, 'r') as fh:
             churn_threshold = fh.read().strip()
 
-        under_threshold_sql = f'SELECT * FROM grouped_by_client_id WHERE avgdays < {churn_threshold}'
-        under_threshold_df = spark_session.sql(under_threshold_sql)
-        under_threshold_df.createOrReplaceTempView('under_threshold')
-
         final_df = (
-            under_threshold_df
+            grouped_by_client_id_df
                 .select('client_id',
                         'pageviews', 'unique_pageviews', 'time_on_page',
                         'u_sessions', 'session_duration',
