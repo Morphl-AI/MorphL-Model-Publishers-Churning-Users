@@ -10,7 +10,9 @@ The free version of the Google Analytics Reporting API v4 doesn't export any cli
 
 We should clarify that the **Client ID refers to a browser**, not to a user account, thus it doesn't contain any personal data. It is possible to associate the Client ID with a user account (across devices), however in this particular use case, all client ids refer to browsers.
 
-## [Using Model on the MorphL Orchestrator](#orchestrator-setup)
+<a name="orchestrator-setup"></a>
+
+## Using Model on the MorphL Orchestrator
 
 Connecting to **Google Analytics API v4** requires creating a service account and retrieving a view ID from your Google Analytics dashboard. The orchestrator assumes that your Google Analytics dashboard has already been configured to allow exporting of granular data (at the browser & session level). You can read [here](https://github.com/Morphl-Project/MorphL-Collectors/tree/master/google-analytics) about the required setup and **creating a service account**.
 
