@@ -14,7 +14,7 @@ from gevent.pywsgi import WSGIServer
 
 import jwt
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 
 """
     Database connector
@@ -49,7 +49,8 @@ class Cassandra:
         """
         self.prep_stmts = {
             'predictions': {},
-            'models': {}
+            'models': {},
+            'access_logs': {}
         }
 
         template_for_single_row = 'SELECT * FROM ga_chp_predictions WHERE client_id = ? LIMIT 1'
@@ -57,6 +58,7 @@ class Cassandra:
         template_for_count = 'SELECT COUNT(*) FROM ga_chp_predictions'
         template_for_count_churned = 'SELECT COUNT(*) FROM ga_chp_predictions WHERE prediction > 0.5 ALLOW FILTERING'
         template_for_models_rows = 'SELECT accuracy, loss, day_as_str FROM ga_chp_valid_models WHERE is_model_valid = True LIMIT 20 ALLOW FILTERING'
+        template_for_access_log_insert = 'INSERT INTO ga_chp_predictions_access_logs (client_id, tstamp, prediction) VALUES (?,?,?)'
 
         self.prep_stmts['predictions']['single'] = self.session.prepare(
             template_for_single_row)
@@ -68,6 +70,8 @@ class Cassandra:
             template_for_count_churned)
         self.prep_stmts['models']['multiple'] = self.session.prepare(
             template_for_models_rows)
+        self.prep_stmts['access_logs']['insert'] = self.session.prepare(
+            template_for_access_log_insert)
 
     def retrieve_prediction(self, client_id):
         bind_list = [client_id]
@@ -101,6 +105,13 @@ class Cassandra:
 
     def get_model_statistics(self):
         return self.session.execute(self.prep_stmts['models']['multiple'], timeout=self.CASS_REQ_TIMEOUT)._current_rows
+
+    def insert_access_log(self, client_id, p):
+        bind_list = [client_id, datetime.now(), -1 if len(
+            p) == 0 else p[0]['prediction']]
+
+        return self.session.execute(self.prep_stmts['access_logs']['insert'],
+                                    bind_list, timeout=self.CASS_REQ_TIMEOUT)
 
 
 """
@@ -146,6 +157,9 @@ def get_prediction(client_id):
         return jsonify(status=0, error='Invalid client id.')
 
     p = app.config['CASSANDRA'].retrieve_prediction(client_id)
+
+    # Log prediction request
+    app.config['CASSANDRA'].insert_access_log(client_id, p)
 
     if len(p) == 0:
         return jsonify(status=0, error='No associated predictions found for that ID.')
