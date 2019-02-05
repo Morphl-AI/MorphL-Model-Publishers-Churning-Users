@@ -28,7 +28,6 @@ class Cassandra:
         self.MORPHL_CASSANDRA_PASSWORD = getenv('MORPHL_CASSANDRA_PASSWORD')
         self.MORPHL_CASSANDRA_KEYSPACE = getenv('MORPHL_CASSANDRA_KEYSPACE')
 
-        self.QUERY = 'SELECT * FROM ga_chp_predictions WHERE client_id = ? LIMIT 1'
         self.CASS_REQ_TIMEOUT = 3600.0
 
         self.auth_provider = PlainTextAuthProvider(
@@ -54,20 +53,17 @@ class Cassandra:
         }
 
         template_for_single_row = 'SELECT * FROM ga_chp_predictions WHERE client_id = ? LIMIT 1'
-        template_for_multiple_rows = 'SELECT * FROM ga_chp_predictions'
-        template_for_count = 'SELECT COUNT(*) FROM ga_chp_predictions'
-        template_for_count_churned = 'SELECT COUNT(*) FROM ga_chp_predictions WHERE prediction > 0.5 ALLOW FILTERING'
-        template_for_models_rows = 'SELECT accuracy, loss, day_as_str FROM ga_chp_valid_models WHERE is_model_valid = True LIMIT 20 ALLOW FILTERING'
+        template_for_multiple_rows = 'SELECT client_id, prediction FROM ga_chp_predictions_by_prediction_date WHERE prediction_date = ?'
+        template_for_user_churn_statistics = 'SELECT loyals, neutral, churning, lost FROM ga_chp_user_churn_statistics WHERE always_zero = 0 LIMIT 1'
+        template_for_models_rows = 'SELECT accuracy, loss, day_as_str FROM ga_chp_valid_models_test WHERE is_model_valid = True LIMIT 20 ALLOW FILTERING'
         template_for_access_log_insert = 'INSERT INTO ga_chp_predictions_access_logs (client_id, tstamp, prediction) VALUES (?,?,?)'
 
         self.prep_stmts['predictions']['single'] = self.session.prepare(
             template_for_single_row)
         self.prep_stmts['predictions']['multiple'] = self.session.prepare(
             template_for_multiple_rows)
-        self.prep_stmts['predictions']['count'] = self.session.prepare(
-            template_for_count)
-        self.prep_stmts['predictions']['count_churned'] = self.session.prepare(
-            template_for_count_churned)
+        self.prep_stmts['predictions']['user_churn_statistics'] = self.session.prepare(
+            template_for_user_churn_statistics)
         self.prep_stmts['models']['multiple'] = self.session.prepare(
             template_for_models_rows)
         self.prep_stmts['access_logs']['insert'] = self.session.prepare(
@@ -77,18 +73,21 @@ class Cassandra:
         bind_list = [client_id]
         return self.session.execute(self.prep_stmts['predictions']['single'], bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
 
-    def retrieve_predictions(self, paging_state=''):
+    def retrieve_predictions(self, date, paging_state=''):
+
+        bind_list = [date]
+
         if paging_state != '':
             try:
                 previous_paging_state = bytes.fromhex(paging_state)
                 results = self.session.execute(
-                    self.prep_stmts['predictions']['multiple'], paging_state=previous_paging_state, timeout=self.CASS_REQ_TIMEOUT)
+                    self.prep_stmts['predictions']['multiple'], bind_list, paging_state=previous_paging_state, timeout=self.CASS_REQ_TIMEOUT)
             except (ValueError, ProtocolException):
                 return {'status': 0, 'error': 'Invalid pagination request.'}
 
         else:
             results = self.session.execute(
-                self.prep_stmts['predictions']['multiple'], timeout=self.CASS_REQ_TIMEOUT)
+                self.prep_stmts['predictions']['multiple'], bind_list, timeout=self.CASS_REQ_TIMEOUT)
 
         return {
             'status': 1,
@@ -97,11 +96,9 @@ class Cassandra:
             ) if results.has_more_pages == True else 0
         }
 
-    def get_predictions_number(self):
-        return self.session.execute(self.prep_stmts['predictions']['count'], timeout=self.CASS_REQ_TIMEOUT)._current_rows[0]['count']
-
-    def get_churned_number(self):
-        return self.session.execute(self.prep_stmts['predictions']['count_churned'], timeout=self.CASS_REQ_TIMEOUT)._current_rows[0]['count']
+    def get_user_churn_statistics(self):
+        return self.session.execute(
+            self.prep_stmts['predictions']['user_churn_statistics'], timeout=self.CASS_REQ_TIMEOUT)._current_rows
 
     def get_model_statistics(self):
         return self.session.execute(self.prep_stmts['models']['multiple'], timeout=self.CASS_REQ_TIMEOUT)._current_rows
@@ -173,14 +170,17 @@ def get_predictions():
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(status=0, error='Unauthorized request.'), 401
 
+    if request.args.get('date') is None:
+        return jsonify(status=0, error='Missing date.'), 401
+
     if request.args.get('page') is None:
-        return jsonify(app.config['CASSANDRA'].retrieve_predictions())
+        return jsonify(app.config['CASSANDRA'].retrieve_predictions(date=request.args.get('date')))
 
     if not re.match('^[a-zA-Z0-9_]+$', request.args.get('page')):
         return jsonify(status=0, error='Invalid page format.')
 
-    predictions = app.config['CASSANDRA'].retrieve_predictions(
-        paging_state=request.args.get('page'))
+    predictions = app.config['CASSANDRA'].retrieve_predictions(date=request.args.get('date'),
+                                                               paging_state=request.args.get('page'))
 
     return jsonify(predictions)
 
@@ -191,16 +191,13 @@ def get_prediction_statistics():
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(status=0, error='Unauthorized request.'), 401
 
-    predictions_number = app.config['CASSANDRA'].get_predictions_number()
-    churned_number = app.config['CASSANDRA'].get_churned_number()
+    user_churn_statistics = app.config['CASSANDRA'].get_user_churn_statistics()
+
     model_statistics = app.config['CASSANDRA'].get_model_statistics()
-    not_churned_number = predictions_number - churned_number
 
     return jsonify(
         status=1,
-        predictions=predictions_number,
-        churned=churned_number,
-        not_churned=not_churned_number,
+        user_churn_statistics=user_churn_statistics,
         model_statistics=model_statistics
     )
 
