@@ -110,6 +110,22 @@ CREATE TABLE morphl.ga_chp_predictions (
   PRIMARY KEY ((client_id))
 );
 
+CREATE TABLE morphl.ga_chp_predictions_by_prediction_date (
+  prediction_date date,
+  client_id text, 
+  prediction double,
+  PRIMARY KEY ((prediction_date), client_id)
+);
+
+CREATE TABLE morphl.ga_chp_user_churn_statistics (
+  always_zero int, 
+  loyals counter,
+  neutral counter,
+  churning counter,
+  lost counter,
+  PRIMARY KEY ((always_zero))
+);
+
 CREATE TABLE morphl.ga_chp_predictions_access_logs (
   client_id text,
   tstamp timestamp,
