@@ -54,7 +54,7 @@ class Cassandra:
 
         template_for_single_row = 'SELECT * FROM ga_chp_predictions WHERE client_id = ? LIMIT 1'
         template_for_multiple_rows = 'SELECT client_id, prediction FROM ga_chp_predictions_by_prediction_date WHERE prediction_date = ?'
-        template_for_user_churn_statistics = 'SELECT loyals, neutral, churning, lost FROM ga_chp_user_churn_statistics WHERE always_zero = 0 LIMIT 1'
+        template_for_user_churn_statistics = 'SELECT loyals, neutral, churning, lost FROM ga_chp_user_churn_statistics WHERE day_of_data_capture= ? LIMIT 1'
         template_for_models_rows = 'SELECT accuracy, loss, day_as_str FROM ga_chp_valid_models_test WHERE is_model_valid = True LIMIT 20 ALLOW FILTERING'
         template_for_access_log_insert = 'INSERT INTO ga_chp_predictions_access_logs (client_id, tstamp, prediction) VALUES (?,?,?)'
 
@@ -96,9 +96,11 @@ class Cassandra:
             ) if results.has_more_pages == True else 0
         }
 
-    def get_user_churn_statistics(self):
+    def get_user_churn_statistics(self, date):
+        bind_list = [date]
+
         return self.session.execute(
-            self.prep_stmts['predictions']['user_churn_statistics'], timeout=self.CASS_REQ_TIMEOUT)._current_rows
+            self.prep_stmts['predictions']['user_churn_statistics'], bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
 
     def get_model_statistics(self):
         return self.session.execute(self.prep_stmts['models']['multiple'], timeout=self.CASS_REQ_TIMEOUT)._current_rows
@@ -170,16 +172,21 @@ def get_predictions():
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(status=0, error='Unauthorized request.'), 401
 
-    if request.args.get('date') is None:
+    date = request.args.get('date')
+
+    if date is None:
         return jsonify(status=0, error='Missing date.'), 401
 
+    if not re.match('^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$', date):
+        return jsonify(status=0, error='Invalid date format.'), 401
+
     if request.args.get('page') is None:
-        return jsonify(app.config['CASSANDRA'].retrieve_predictions(date=request.args.get('date')))
+        return jsonify(app.config['CASSANDRA'].retrieve_predictions(date=date))
 
     if not re.match('^[a-zA-Z0-9_]+$', request.args.get('page')):
         return jsonify(status=0, error='Invalid page format.')
 
-    predictions = app.config['CASSANDRA'].retrieve_predictions(date=request.args.get('date'),
+    predictions = app.config['CASSANDRA'].retrieve_predictions(date=date,
                                                                paging_state=request.args.get('page'))
 
     return jsonify(predictions)
@@ -191,7 +198,16 @@ def get_prediction_statistics():
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(status=0, error='Unauthorized request.'), 401
 
-    user_churn_statistics = app.config['CASSANDRA'].get_user_churn_statistics()
+    date = request.args.get('date')
+
+    if date is None:
+        return jsonify(status=0, error='Missing date.'), 401
+
+    if not re.match('^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$', date):
+        return jsonify(status=0, error='Invalid date format. Please use: "yyyy-mm-dd".'), 401
+
+    user_churn_statistics = app.config['CASSANDRA'].get_user_churn_statistics(
+        date)
 
     model_statistics = app.config['CASSANDRA'].get_model_statistics()
 
