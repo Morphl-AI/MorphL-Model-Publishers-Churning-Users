@@ -54,7 +54,7 @@ class Cassandra:
 
         template_for_single_row = 'SELECT * FROM ga_chp_predictions WHERE client_id = ? LIMIT 1'
         template_for_multiple_rows = 'SELECT client_id, prediction FROM ga_chp_predictions_by_prediction_date WHERE prediction_date = ?'
-        template_for_user_churn_statistics = 'SELECT loyals, neutral, churning, lost FROM ga_chp_user_churn_statistics WHERE day_of_data_capture= ? LIMIT 1'
+        template_for_user_churn_statistics = 'SELECT loyals, neutral, churning, lost FROM ga_chp_user_churn_statistics WHERE prediction_date= ? LIMIT 1'
         template_for_models_rows = 'SELECT accuracy, loss, day_as_str FROM ga_chp_valid_models_test WHERE is_model_valid = True LIMIT 20 ALLOW FILTERING'
         template_for_access_log_insert = 'INSERT INTO ga_chp_predictions_access_logs (client_id, tstamp, prediction) VALUES (?,?,?)'
 
