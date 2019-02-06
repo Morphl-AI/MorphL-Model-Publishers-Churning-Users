@@ -25,6 +25,7 @@ class Cassandra:
         self.prep_stmt = {}
 
         template_for_prediction = 'INSERT INTO ga_chp_predictions (client_id,prediction) VALUES (?,?)'
+        template_for_predictions_by_date = 'INSERT INTO ga_chp_predictions_by_prediction_date (prediction_date, client_id, prediction) VALUES (?,?,?)'
         template_for_loyals = 'UPDATE ga_chp_user_churn_statistics SET loyals=loyals+1 WHERE prediction_date=?'
         template_for_neutral = 'UPDATE ga_chp_user_churn_statistics SET neutral=neutral+1 WHERE prediction_date=?'
         template_for_churning = 'UPDATE ga_chp_user_churn_statistics SET churning=churning+1 WHERE prediction_date=?'
@@ -41,6 +42,8 @@ class Cassandra:
 
         self.prep_stmt['prediction'] = self.session.prepare(
             template_for_prediction)
+        self.prep_stmt['predictions_by_date'] = self.session.prepare(
+            template_for_predictions_by_date)
         self.prep_stmt['loyals'] = self.session.prepare(
             template_for_loyals)
         self.prep_stmt['neutral'] = self.session.prepare(
@@ -67,8 +70,15 @@ class Cassandra:
             self.session.execute(
                 self.prep_stmt['lost'], bind_list, timeout=self.CASS_REQ_TIMEOUT)
 
+    def save_prediction_by_date(self, client_id, prediction):
+        bind_list = [DAY_AS_STR, client_id, prediction]
+
+        self.session.execute(
+            self.prep_stmt['predictions_by_date'], bind_list, timeout=self.CASS_REQ_TIMEOUT)
+
     def save_prediction(self, client_id, prediction):
         self.label_prediction(prediction)
+        self.save_prediction_by_date(client_id, prediction)
 
         bind_list = [client_id, prediction]
 
