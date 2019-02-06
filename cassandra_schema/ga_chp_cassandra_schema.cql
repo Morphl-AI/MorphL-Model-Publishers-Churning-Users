@@ -118,12 +118,12 @@ CREATE TABLE morphl.ga_chp_predictions_by_prediction_date (
 );
 
 CREATE TABLE morphl.ga_chp_user_churn_statistics (
-  always_zero int, 
+  day_of_data_capture date, 
   loyals counter,
   neutral counter,
   churning counter,
   lost counter,
-  PRIMARY KEY ((always_zero))
+  PRIMARY KEY ((day_of_data_capture))
 );
 
 CREATE TABLE morphl.ga_chp_predictions_access_logs (
