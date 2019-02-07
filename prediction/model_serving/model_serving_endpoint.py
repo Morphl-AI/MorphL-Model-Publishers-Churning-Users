@@ -175,10 +175,10 @@ def get_predictions():
     date = request.args.get('date')
 
     if date is None:
-        return jsonify(status=0, error='Missing date.'), 401
+        return jsonify(status=0, error='Missing date.')
 
     if not re.match('^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$', date):
-        return jsonify(status=0, error='Invalid date format.'), 401
+        return jsonify(status=0, error='Invalid date format.'),
 
     if request.args.get('page') is None:
         return jsonify(app.config['CASSANDRA'].retrieve_predictions(date=date))
@@ -201,10 +201,10 @@ def get_prediction_statistics():
     date = request.args.get('date')
 
     if date is None:
-        return jsonify(status=0, error='Missing date.'), 401
+        return jsonify(status=0, error='Missing date.')
 
     if not re.match('^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$', date):
-        return jsonify(status=0, error='Invalid date format. Please use: "yyyy-mm-dd".'), 401
+        return jsonify(status=0, error='Invalid date format.')
 
     user_churn_statistics = app.config['CASSANDRA'].get_user_churn_statistics(
         date)
