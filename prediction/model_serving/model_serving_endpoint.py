@@ -99,8 +99,18 @@ class Cassandra:
     def get_user_churn_statistics(self, date):
         bind_list = [date]
 
-        return self.session.execute(
-            self.prep_stmts['predictions']['user_churn_statistics'], bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows[0]
+        response = self.session.execute(
+            self.prep_stmts['predictions']['user_churn_statistics'], bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
+
+        if not response:
+            return {}
+
+        user_churn_statistics = response[0]
+
+        user_churn_statistics['predictions'] = sum(
+            user_churn_statistics.values())
+
+        return user_churn_statistics
 
     def get_model_statistics(self):
         return self.session.execute(self.prep_stmts['models']['multiple'], timeout=self.CASS_REQ_TIMEOUT)._current_rows
@@ -208,8 +218,6 @@ def get_prediction_statistics():
 
     user_churn_statistics = app.config['CASSANDRA'].get_user_churn_statistics(
         date)
-
-    user_churn_statistics['predictions'] = sum(user_churn_statistics.values())
 
     model_statistics = app.config['CASSANDRA'].get_model_statistics()
 
