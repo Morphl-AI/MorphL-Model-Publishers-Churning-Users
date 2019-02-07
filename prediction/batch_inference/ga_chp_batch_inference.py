@@ -26,10 +26,7 @@ class Cassandra:
 
         template_for_prediction = 'INSERT INTO ga_chp_predictions (client_id,prediction) VALUES (?,?)'
         template_for_predictions_by_date = 'INSERT INTO ga_chp_predictions_by_prediction_date (prediction_date, client_id, prediction) VALUES (?,?,?)'
-        template_for_loyals = 'UPDATE ga_chp_user_churn_statistics SET loyals=loyals+1 WHERE prediction_date=?'
-        template_for_neutral = 'UPDATE ga_chp_user_churn_statistics SET neutral=neutral+1 WHERE prediction_date=?'
-        template_for_churning = 'UPDATE ga_chp_user_churn_statistics SET churning=churning+1 WHERE prediction_date=?'
-        template_for_lost = 'UPDATE ga_chp_user_churn_statistics SET lost=lost+1 WHERE prediction_date=?'
+        template_for_churn_statistics = 'UPDATE ga_chp_user_churn_statistics SET loyals=loyals+?, neutral=neutral+?, churning=churning+?, lost=lost+? WHERE prediction_date=?'
 
         self.CASS_REQ_TIMEOUT = 3600.0
 
@@ -44,31 +41,27 @@ class Cassandra:
             template_for_prediction)
         self.prep_stmt['predictions_by_date'] = self.session.prepare(
             template_for_predictions_by_date)
-        self.prep_stmt['loyals'] = self.session.prepare(
-            template_for_loyals)
-        self.prep_stmt['neutral'] = self.session.prepare(
-            template_for_neutral)
-        self.prep_stmt['churning'] = self.session.prepare(
-            template_for_churning)
-        self.prep_stmt['lost'] = self.session.prepare(
-            template_for_lost)
+        self.prep_stmt['churn_statistics'] = self.session.prepare(
+            template_for_churn_statistics)
 
-    def label_prediction(self, prediction):
+    def update_churn_stastics(self, predictions_df):
 
-        bind_list = [DAY_AS_STR]
+        loyals = predictions_df[predictions_df.prediction <=
+                                0.4].prediction.count().compute()
 
-        if prediction <= 0.4:
-            self.session.execute(
-                self.prep_stmt['loyals'], bind_list, timeout=self.CASS_REQ_TIMEOUT)
-        elif prediction <= 0.6:
-            self.session.execute(
-                self.prep_stmt['neutral'], bind_list, timeout=self.CASS_REQ_TIMEOUT)
-        elif prediction <= 0.9:
-            self.session.execute(
-                self.prep_stmt['churning'], bind_list, timeout=self.CASS_REQ_TIMEOUT)
-        else:
-            self.session.execute(
-                self.prep_stmt['lost'], bind_list, timeout=self.CASS_REQ_TIMEOUT)
+        neutral = predictions_df[(predictions_df.prediction > 0.4) & (
+            predictions_df.prediction <= 0.6)].prediction.count().compute()
+
+        churning = predictions_df[(predictions_df.prediction > 0.6) & (
+            predictions_df.prediction <= 0.9)].prediction.count().compute()
+
+        lost = predictions_df[(predictions_df.prediction > 0.9) & (
+            predictions_df.prediction <= 1)].prediction.count().compute()
+
+        bind_list = [loyals, neutral, churning, lost, DAY_AS_STR]
+
+        self.session.execute(
+            self.prep_stmt['churn_statistics'], bind_list, timeout=self.CASS_REQ_TIMEOUT)
 
     def save_prediction_by_date(self, client_id, prediction):
         bind_list = [DAY_AS_STR, client_id, prediction]
@@ -77,7 +70,6 @@ class Cassandra:
             self.prep_stmt['predictions_by_date'], bind_list, timeout=self.CASS_REQ_TIMEOUT)
 
     def save_prediction(self, client_id, prediction):
-        self.label_prediction(prediction)
         self.save_prediction_by_date(client_id, prediction)
 
         bind_list = [client_id, prediction]
@@ -104,10 +96,12 @@ def persist_partition(partition_df):
 
 if __name__ == '__main__':
     client = Client()
+    cassandra = Cassandra()
     dask_df = client.persist(dd.read_parquet(HDFS_DIR_INPUT))
     dask_df.client_id.count().compute()
     dask_df['prediction'] = dask_df.map_partitions(
         batch_inference_on_partition, meta=('prediction', float))
+    cassandra.update_churn_stastics(dask_df['prediction'])
     dask_df['token'] = dask_df.map_partitions(
         persist_partition, meta=('token', int))
     dask_df.token.compute()
