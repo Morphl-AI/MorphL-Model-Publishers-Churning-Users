@@ -26,7 +26,7 @@ class Cassandra:
 
         template_for_prediction = 'INSERT INTO ga_chp_predictions (client_id,prediction) VALUES (?,?)'
         template_for_predictions_by_date = 'INSERT INTO ga_chp_predictions_by_prediction_date (prediction_date, client_id, prediction) VALUES (?,?,?)'
-        template_for_churn_statistics = 'UPDATE ga_chp_user_churn_statistics SET loyals=loyals+?, neutral=neutral+?, churning=churning+?, lost=lost+? WHERE prediction_date=?'
+        template_for_churn_statistics = 'UPDATE ga_chp_user_churn_statistics SET loyal=loyal+?, neutral=neutral+?, churning=churning+?, lost=lost+? WHERE prediction_date=?'
 
         self.CASS_REQ_TIMEOUT = 3600.0
 
@@ -46,8 +46,8 @@ class Cassandra:
 
     def update_churn_stastics(self, predictions_df):
 
-        loyals = predictions_df[predictions_df.prediction <=
-                                0.4].prediction.count().compute()
+        loyal = predictions_df[predictions_df.prediction <=
+                               0.4].prediction.count().compute()
 
         neutral = predictions_df[(predictions_df.prediction > 0.4) & (
             predictions_df.prediction <= 0.6)].prediction.count().compute()
@@ -58,7 +58,7 @@ class Cassandra:
         lost = predictions_df[(predictions_df.prediction > 0.9) & (
             predictions_df.prediction <= 1)].prediction.count().compute()
 
-        bind_list = [loyals, neutral, churning, lost, DAY_AS_STR]
+        bind_list = [loyal, neutral, churning, lost, DAY_AS_STR]
 
         self.session.execute(
             self.prep_stmt['churn_statistics'], bind_list, timeout=self.CASS_REQ_TIMEOUT)

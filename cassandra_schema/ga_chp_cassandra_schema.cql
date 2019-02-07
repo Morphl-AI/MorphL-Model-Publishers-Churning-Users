@@ -119,7 +119,7 @@ CREATE TABLE morphl.ga_chp_predictions_by_prediction_date (
 
 CREATE TABLE morphl.ga_chp_user_churn_statistics (
   prediction_date date, 
-  loyals counter,
+  loyal counter,
   neutral counter,
   churning counter,
   lost counter,
