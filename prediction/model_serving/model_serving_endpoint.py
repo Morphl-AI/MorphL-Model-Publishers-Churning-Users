@@ -55,7 +55,7 @@ class Cassandra:
         template_for_single_row = 'SELECT * FROM ga_chp_predictions WHERE client_id = ? LIMIT 1'
         template_for_multiple_rows = 'SELECT client_id, prediction FROM ga_chp_predictions_by_prediction_date WHERE prediction_date = ?'
         template_for_user_churn_statistics = 'SELECT loyal, neutral, churning, lost FROM ga_chp_user_churn_statistics WHERE prediction_date= ? LIMIT 1'
-        template_for_models_rows = 'SELECT accuracy, loss, day_as_str FROM ga_chp_valid_models_test WHERE is_model_valid = True LIMIT 20 ALLOW FILTERING'
+        template_for_models_rows = 'SELECT accuracy, loss, day_as_str FROM ga_chp_valid_models WHERE is_model_valid = True LIMIT 20 ALLOW FILTERING'
         template_for_access_log_insert = 'INSERT INTO ga_chp_predictions_access_logs (client_id, tstamp, prediction) VALUES (?,?,?)'
 
         self.prep_stmts['predictions']['single'] = self.session.prepare(
@@ -112,7 +112,7 @@ class Cassandra:
 
         return user_churn_statistics
 
-    def get_model_statistics(self):
+    def get_churn_model_statistics(self):
         return self.session.execute(self.prep_stmts['models']['multiple'], timeout=self.CASS_REQ_TIMEOUT)._current_rows
 
     def insert_access_log(self, client_id, p):
@@ -219,11 +219,22 @@ def get_prediction_statistics():
     user_churn_statistics = app.config['CASSANDRA'].get_user_churn_statistics(
         date)
 
-    model_statistics = app.config['CASSANDRA'].get_model_statistics()
-
     return jsonify(
         status=1,
         user_churn_statistics=user_churn_statistics,
+    )
+
+
+@app.route('/churning/getmodelstatistics', methods=['GET'])
+def get_model_statistics():
+
+    if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
+        return jsonify(status=0, error='Unauthorized request.'), 401
+
+    model_statistics = app.config['CASSANDRA'].get_churn_model_statistics()
+
+    return jsonify(
+        status=1,
         model_statistics=model_statistics
     )
 
