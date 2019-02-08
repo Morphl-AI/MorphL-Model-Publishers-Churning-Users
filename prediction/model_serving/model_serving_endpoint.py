@@ -73,11 +73,15 @@ class Cassandra:
         bind_list = [client_id]
         return self.session.execute(self.prep_stmts['predictions']['single'], bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
 
-    def retrieve_predictions(self, date, paging_state=''):
+    def retrieve_predictions(self, paging_state, date):
 
         bind_list = [date]
 
-        if paging_state != '':
+        if paging_state is not None:
+
+            if not re.match('^[a-zA-Z0-9_]+$', request.args.get('page')):
+                return {'status': 0, 'error': 'Invalid page format.'}
+
             try:
                 previous_paging_state = bytes.fromhex(paging_state)
                 results = self.session.execute(
@@ -176,30 +180,30 @@ def get_prediction(client_id):
     return jsonify(status=1, prediction={'client_id': client_id, 'prediction': p[0]['prediction']})
 
 
-@app.route('/churning/getpredictions', methods=['GET'])
-def get_predictions():
+@app.route('/churning/getpredictions', methods=['GET'], defaults={'client_id': None})
+@app.route('/churning/getpredictions/<client_id>', methods=['GET'])
+def get_predictions(client_id):
 
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(status=0, error='Unauthorized request.'), 401
 
+    if client_id is not None:
+        if not re.match('^[a-zA-Z0-9.]+$', client_id):
+            return jsonify(status=0, error='Invalid client id.')
+
+        prediction = app.config['CASSANDRA'].retrieve_prediction(client_id)
+
+        if len(prediction) == 0:
+            return jsonify(status=0, error='No associated predictions found for that ID.')
+
+        return jsonify(status=1, prediction={'client_id': client_id, 'prediction': prediction[0]['prediction']})
+
     date = request.args.get('date')
 
-    if date is None:
-        return jsonify(status=0, error='Missing date.')
+    if date is None or not re.match('^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$', date):
+        return jsonify(status=0, error='Invalid date format.'), 401
 
-    if not re.match('^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$', date):
-        return jsonify(status=0, error='Invalid date format.'),
-
-    if request.args.get('page') is None:
-        return jsonify(app.config['CASSANDRA'].retrieve_predictions(date=date))
-
-    if not re.match('^[a-zA-Z0-9_]+$', request.args.get('page')):
-        return jsonify(status=0, error='Invalid page format.')
-
-    predictions = app.config['CASSANDRA'].retrieve_predictions(date=date,
-                                                               paging_state=request.args.get('page'))
-
-    return jsonify(predictions)
+    return jsonify(app.config['CASSANDRA'].retrieve_predictions(request.args.get('page'), date))
 
 
 @app.route('/churning/getpredictionstatistics', methods=['GET'])
