@@ -77,19 +77,25 @@ class Cassandra:
 
         bind_list = [date]
 
+        # Check if paginated request
         if paging_state is not None:
 
+            # Validate page format
             if not re.match('^[a-zA-Z0-9_]+$', request.args.get('page')):
                 return {'status': 0, 'error': 'Invalid page format.'}
 
             try:
+                # Convert page from hex format to bytes
                 previous_paging_state = bytes.fromhex(paging_state)
                 results = self.session.execute(
                     self.prep_stmts['predictions']['multiple'], bind_list, paging_state=previous_paging_state, timeout=self.CASS_REQ_TIMEOUT)
             except (ValueError, ProtocolException):
+
+                # If paging_state causes an error, return invalid request since the format was probably valid but the actual value was wrong
                 return {'status': 0, 'error': 'Invalid pagination request.'}
 
         else:
+            # If no page is set get first page of results
             results = self.session.execute(
                 self.prep_stmts['predictions']['multiple'], bind_list, timeout=self.CASS_REQ_TIMEOUT)
 
@@ -106,11 +112,13 @@ class Cassandra:
         response = self.session.execute(
             self.prep_stmts['predictions']['user_churn_statistics'], bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
 
+        # If no statistics exist in the db, return empty dict
         if not response:
             return {}
 
         user_churn_statistics = response[0]
 
+        # Sum categorized predictions to get total predictions
         user_churn_statistics['predictions'] = sum(
             user_churn_statistics.values())
 
@@ -184,15 +192,20 @@ def get_prediction(client_id):
 @app.route('/churning/getpredictions/<client_id>', methods=['GET'])
 def get_predictions(client_id):
 
+    # Validate authorization header with JWT
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(status=0, error='Unauthorized request.'), 401
 
+    # Check if single prediction request
     if client_id is not None:
+
+        # Validate client id
         if not re.match('^[a-zA-Z0-9.]+$', client_id):
             return jsonify(status=0, error='Invalid client id.')
 
         prediction = app.config['CASSANDRA'].retrieve_prediction(client_id)
 
+        # Return error if id does not exist in db
         if len(prediction) == 0:
             return jsonify(status=0, error='No associated predictions found for that ID.')
 
@@ -200,6 +213,7 @@ def get_predictions(client_id):
 
     date = request.args.get('date')
 
+    # Validate date when dealing with multiple predictions request
     if date is None or not re.match('^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$', date):
         return jsonify(status=0, error='Invalid date format.'), 401
 
@@ -209,11 +223,13 @@ def get_predictions(client_id):
 @app.route('/churning/getpredictionstatistics', methods=['GET'])
 def get_prediction_statistics():
 
+    # Validate authorization header with JWT
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(status=0, error='Unauthorized request.'), 401
 
     date = request.args.get('date')
 
+    # Validate date
     if date is None:
         return jsonify(status=0, error='Missing date.')
 
@@ -232,6 +248,7 @@ def get_prediction_statistics():
 @app.route('/churning/getmodelstatistics', methods=['GET'])
 def get_model_statistics():
 
+    # Validate authorization header with JWT
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(status=0, error='Unauthorized request.'), 401
 
