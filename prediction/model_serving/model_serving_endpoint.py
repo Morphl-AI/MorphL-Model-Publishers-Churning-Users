@@ -108,7 +108,7 @@ class Cassandra:
 
     def get_user_churn_statistics(self, date):
         bind_list = [date]
-
+        
         response = self.session.execute(
             self.prep_stmts['predictions']['user_churn_statistics'], bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
 
@@ -209,7 +209,7 @@ def get_predictions(client_id):
         if len(prediction) == 0:
             return jsonify(status=0, error='No associated predictions found for that ID.')
 
-        return jsonify(status=1, prediction={'client_id': client_id, 'prediction': prediction[0]['prediction']})
+        return jsonify(status=1, predictions=[prediction[0]])
 
     date = request.args.get('date')
 
