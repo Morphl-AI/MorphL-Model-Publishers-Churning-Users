@@ -79,11 +79,6 @@ class Cassandra:
 
         # Check if paginated request
         if paging_state is not None:
-
-            # Validate page format
-            if not re.match('^[a-zA-Z0-9_]+$', request.args.get('page')):
-                return {'status': 0, 'error': 'Invalid page format.'}
-
             try:
                 # Convert page from hex format to bytes
                 previous_paging_state = bytes.fromhex(paging_state)
@@ -202,12 +197,16 @@ def get_predictions(client_id):
         return jsonify(status=1, predictions=[prediction[0]])
 
     date = request.args.get('date')
+    page = request.args.get('page')
 
     # Validate date when dealing with multiple predictions request
     if date is None or not re.match('^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$', date):
         return jsonify(status=0, error='Invalid date format.'), 401
 
-    return jsonify(app.config['CASSANDRA'].retrieve_predictions(request.args.get('page'), date))
+    if page is not None and not re.match('^[a-zA-Z0-9_]+$', page):
+        return jsonify(status=0, error='Invalid page format.'), 401
+
+    return jsonify(app.config['CASSANDRA'].retrieve_predictions(page, date))
 
 
 @app.route('/churning/getpredictionsstatistics', methods=['GET'])
