@@ -70,8 +70,6 @@ class Cassandra:
             self.prep_stmt['predictions_by_date'], bind_list, timeout=self.CASS_REQ_TIMEOUT)
 
     def save_prediction(self, client_id, prediction):
-        self.save_prediction_by_date(client_id, prediction)
-
         bind_list = [client_id, prediction]
 
         self.session.execute(self.prep_stmt['prediction'], bind_list,
@@ -88,6 +86,7 @@ def batch_inference_on_partition(partition_df):
 
 def persist_partition(partition_df):
     def persist_one_prediction(series_obj):
+        cassandra.save_prediction_by_date(series_obj.client_id, series_obj.prediction)
         cassandra.save_prediction(series_obj.client_id, series_obj.prediction)
     cassandra = Cassandra()
     partition_df.apply(persist_one_prediction, axis=1)
