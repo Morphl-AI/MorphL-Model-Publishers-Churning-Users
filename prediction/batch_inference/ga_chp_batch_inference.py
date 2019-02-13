@@ -26,7 +26,7 @@ class Cassandra:
 
         template_for_prediction = 'INSERT INTO ga_chp_predictions (client_id,prediction) VALUES (?,?)'
         template_for_predictions_by_date = 'INSERT INTO ga_chp_predictions_by_prediction_date (prediction_date, client_id, prediction) VALUES (?,?,?)'
-        template_for_churn_statistics = 'UPDATE ga_chp_user_churn_statistics SET loyal=loyal+?, neutral=neutral+?, churning=churning+?, lost=lost+? WHERE prediction_date=?'
+        template_for_predictions_statistics = 'UPDATE ga_chp_predictions_statistics SET loyal=loyal+?, neutral=neutral+?, churning=churning+?, lost=lost+? WHERE prediction_date=?'
 
         self.CASS_REQ_TIMEOUT = 3600.0
 
@@ -41,10 +41,10 @@ class Cassandra:
             template_for_prediction)
         self.prep_stmt['predictions_by_date'] = self.session.prepare(
             template_for_predictions_by_date)
-        self.prep_stmt['churn_statistics'] = self.session.prepare(
-            template_for_churn_statistics)
+        self.prep_stmt['predictions_statistics'] = self.session.prepare(
+            template_for_predictions_statistics)
 
-    def update_churn_statistics(self, predictions_df):
+    def update_predictions_statistics(self, predictions_df):
 
         loyal = predictions_df[predictions_df.prediction <=
                                0.4].prediction.count().compute()
@@ -61,7 +61,7 @@ class Cassandra:
         bind_list = [loyal, neutral, churning, lost, DAY_AS_STR]
 
         self.session.execute(
-            self.prep_stmt['churn_statistics'], bind_list, timeout=self.CASS_REQ_TIMEOUT)
+            self.prep_stmt['predictions_statistics'], bind_list, timeout=self.CASS_REQ_TIMEOUT)
 
     def save_prediction_by_date(self, client_id, prediction):
         bind_list = [DAY_AS_STR, client_id, prediction]
@@ -101,7 +101,7 @@ if __name__ == '__main__':
     dask_df.client_id.count().compute()
     dask_df['prediction'] = dask_df.map_partitions(
         batch_inference_on_partition, meta=('prediction', float))
-    cassandra.update_churn_statistics(dask_df['prediction'])
+    cassandra.update_predictions_statistics(dask_df['prediction'])
     dask_df['token'] = dask_df.map_partitions(
         persist_partition, meta=('token', int))
     dask_df.token.compute()

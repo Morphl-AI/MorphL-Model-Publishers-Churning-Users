@@ -54,7 +54,7 @@ class Cassandra:
 
         template_for_single_row = 'SELECT * FROM ga_chp_predictions WHERE client_id = ? LIMIT 1'
         template_for_multiple_rows = 'SELECT client_id, prediction FROM ga_chp_predictions_by_prediction_date WHERE prediction_date = ?'
-        template_for_user_churn_statistics = 'SELECT loyal, neutral, churning, lost FROM ga_chp_user_churn_statistics WHERE prediction_date= ? LIMIT 1'
+        template_for_predictions_statistics = 'SELECT loyal, neutral, churning, lost FROM ga_chp_predictions_statistics WHERE prediction_date= ? LIMIT 1'
         template_for_models_rows = 'SELECT accuracy, loss, day_as_str FROM ga_chp_valid_models WHERE is_model_valid = True LIMIT 20 ALLOW FILTERING'
         template_for_access_log_insert = 'INSERT INTO ga_chp_predictions_access_logs (client_id, tstamp, prediction) VALUES (?,?,?)'
 
@@ -62,8 +62,8 @@ class Cassandra:
             template_for_single_row)
         self.prep_stmts['predictions']['multiple'] = self.session.prepare(
             template_for_multiple_rows)
-        self.prep_stmts['predictions']['user_churn_statistics'] = self.session.prepare(
-            template_for_user_churn_statistics)
+        self.prep_stmts['predictions']['statistics'] = self.session.prepare(
+            template_for_predictions_statistics)
         self.prep_stmts['models']['multiple'] = self.session.prepare(
             template_for_models_rows)
         self.prep_stmts['access_logs']['insert'] = self.session.prepare(
@@ -106,25 +106,15 @@ class Cassandra:
             ) if results.has_more_pages == True else 0
         }
 
-    def get_user_churn_statistics(self, date):
+    def get_statistics(self, date):
         bind_list = [date]
         
         response = self.session.execute(
-            self.prep_stmts['predictions']['user_churn_statistics'], bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
+            self.prep_stmts['predictions']['statistics'], bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
 
-        # If no statistics exist in the db, return empty dict
-        if not response:
-            return {}
+        return {} if not response else response[0]
 
-        user_churn_statistics = response[0]
-
-        # Sum categorized predictions to get total predictions
-        user_churn_statistics['predictions'] = sum(
-            user_churn_statistics.values())
-
-        return user_churn_statistics
-
-    def get_churn_model_statistics(self):
+    def get_model_statistics(self):
         return self.session.execute(self.prep_stmts['models']['multiple'], timeout=self.CASS_REQ_TIMEOUT)._current_rows
 
     def insert_access_log(self, client_id, p):
@@ -220,8 +210,8 @@ def get_predictions(client_id):
     return jsonify(app.config['CASSANDRA'].retrieve_predictions(request.args.get('page'), date))
 
 
-@app.route('/churning/getpredictionstatistics', methods=['GET'])
-def get_prediction_statistics():
+@app.route('/churning/getpredictionsstatistics', methods=['GET'])
+def get_predictions_statistics():
 
     # Validate authorization header with JWT
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
@@ -236,12 +226,12 @@ def get_prediction_statistics():
     if not re.match('^\d{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01])$', date):
         return jsonify(status=0, error='Invalid date format.')
 
-    user_churn_statistics = app.config['CASSANDRA'].get_user_churn_statistics(
+    predictions_statistics = app.config['CASSANDRA'].get_statistics(
         date)
 
     return jsonify(
         status=1,
-        user_churn_statistics=user_churn_statistics,
+        predictions_statistics=predictions_statistics,
     )
 
 
@@ -252,7 +242,7 @@ def get_model_statistics():
     if request.headers.get('Authorization') is None or not app.config['API'].verify_jwt(request.headers['Authorization']):
         return jsonify(status=0, error='Unauthorized request.'), 401
 
-    model_statistics = app.config['CASSANDRA'].get_churn_model_statistics()
+    model_statistics = app.config['CASSANDRA'].get_model_statistics()
 
     return jsonify(
         status=1,

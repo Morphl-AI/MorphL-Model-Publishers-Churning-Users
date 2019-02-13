@@ -117,7 +117,7 @@ CREATE TABLE morphl.ga_chp_predictions_by_prediction_date (
   PRIMARY KEY ((prediction_date), client_id)
 );
 
-CREATE TABLE morphl.ga_chp_user_churn_statistics (
+CREATE TABLE morphl.ga_chp_predictions_statistics (
   prediction_date date, 
   loyal counter,
   neutral counter,
