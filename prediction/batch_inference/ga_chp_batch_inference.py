@@ -44,7 +44,7 @@ class Cassandra:
         self.prep_stmt['churn_statistics'] = self.session.prepare(
             template_for_churn_statistics)
 
-    def update_churn_stastics(self, predictions_df):
+    def update_churn_statistics(self, predictions_df):
 
         loyal = predictions_df[predictions_df.prediction <=
                                0.4].prediction.count().compute()
@@ -101,7 +101,7 @@ if __name__ == '__main__':
     dask_df.client_id.count().compute()
     dask_df['prediction'] = dask_df.map_partitions(
         batch_inference_on_partition, meta=('prediction', float))
-    cassandra.update_churn_stastics(dask_df['prediction'])
+    cassandra.update_churn_statistics(dask_df['prediction'])
     dask_df['token'] = dask_df.map_partitions(
         persist_partition, meta=('token', int))
     dask_df.token.compute()
