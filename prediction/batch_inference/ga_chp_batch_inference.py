@@ -44,19 +44,15 @@ class Cassandra:
         self.prep_stmt['predictions_statistics'] = self.session.prepare(
             template_for_predictions_statistics)
 
-    def update_predictions_statistics(self, predictions_df):
+    def update_predictions_statistics(self, predictions_series):
 
-        loyal = predictions_df[predictions_df.prediction <=
-                               0.4].prediction.count().compute()
+        loyal = predictions_series[predictions_series <= 0.4].count().compute()
 
-        neutral = predictions_df[(predictions_df.prediction > 0.4) & (
-            predictions_df.prediction <= 0.6)].prediction.count().compute()
+        neutral = predictions_series[(predictions_series  > 0.4) & (predictions_series <= 0.6)].count().compute()
 
-        churning = predictions_df[(predictions_df.prediction > 0.6) & (
-            predictions_df.prediction <= 0.9)].prediction.count().compute()
+        churning = predictions_series[(predictions_series > 0.6) & (predictions_series <= 0.9)].count().compute()
 
-        lost = predictions_df[(predictions_df.prediction > 0.9) & (
-            predictions_df.prediction <= 1)].prediction.count().compute()
+        lost = predictions_series[(predictions_series > 0.9) & (predictions_series <= 1)].count().compute()
 
         bind_list = [loyal, neutral, churning, lost, DAY_AS_STR]
 
