@@ -410,11 +410,6 @@ def main():
          .options(**save_options_ga_chp_features_raw)
          .save())
 
-    # Retained users
-    higher_session_counts_sql = 'SELECT * FROM features_raw WHERE session_count > 1'
-    higher_session_counts_df = spark_session.sql(higher_session_counts_sql)
-    higher_session_counts_df.createOrReplaceTempView('higher_session_counts')
-
     # Using window functions: https://databricks.com/blog/2015/07/15/introducing-window-functions-in-spark-sql.html
     grouped_by_client_id_before_dedup_sql_parts = [
         'SELECT',
@@ -435,7 +430,7 @@ def main():
         'ROW_NUMBER() OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS rownum,',
         'AVG(days_since_last_session) OVER (PARTITION BY client_id) AS avgdays',
         'FROM',
-        'higher_session_counts'
+        'features_raw'
     ]
     grouped_by_client_id_before_dedup_sql = ' '.join(grouped_by_client_id_before_dedup_sql_parts)
     grouped_by_client_id_before_dedup_df = spark_session.sql(grouped_by_client_id_before_dedup_sql)
