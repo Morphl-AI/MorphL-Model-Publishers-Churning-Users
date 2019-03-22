@@ -12,7 +12,7 @@ class ModelGenerator:
     which are saved in a .json file.
 
     Attributes:
-        day_as_str: Environment variable that contains the current day as a string.
+        model_day_as_str: Environment variable that contains the current day as a string.
         unique_hash: Environment variable that contains a hash generated when the data is processed for training. This helps us distinguish between transformations that occured
                     on the same day.
         models_dir: Environment variable that contains the path to the models directory.
@@ -26,7 +26,7 @@ class ModelGenerator:
         then splits the dataframe into testing, training and validation sets.
 
         """
-        self.day_as_str = getenv('DAY_AS_STR')
+        self.model_day_as_str = getenv('MODEL_DAY_AS_STR')
         self.unique_hash = getenv('UNIQUE_HASH')
         self.models_dir = getenv('MODELS_DIR')
 
@@ -96,11 +96,11 @@ class ModelGenerator:
 
         scores = {'loss': score[0], 'accuracy': score[1]}
 
-        # Save the evaluation scores to a .json file who's name and path are made up of 'day_as_str', 'unique_hash' and 'model_dir' respectively.
-        churn_scores_json_file = f'{self.models_dir}/{self.day_as_str}_{self.unique_hash}_ga_chp_churn_scores.json'
+        # Save the evaluation scores to a .json file who's name and path are made up of 'model_day_as_str', 'unique_hash' and 'model_dir' respectively.
+        churn_scores_json_file = f'{self.models_dir}/{self.model_day_as_str}_{self.unique_hash}_ga_chp_churn_scores.json'
         with open(churn_scores_json_file, 'w') as writer:
             writer.write(json.dumps(scores))
 
         # Save the model in a similar way.
-        churn_model_file = f'{self.models_dir}/{self.day_as_str}_{self.unique_hash}_ga_chp_churn_model.h5'
+        churn_model_file = f'{self.models_dir}/{self.model_day_as_str}_{self.unique_hash}_ga_chp_churn_model.h5'
         model.save(churn_model_file)

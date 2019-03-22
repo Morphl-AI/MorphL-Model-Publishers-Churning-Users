@@ -4,7 +4,7 @@ from pyspark.sql import functions as f, SparkSession
 
 MASTER_URL = 'local[*]'
 APPLICATION_NAME = 'preprocessor'
-DAY_AS_STR = getenv('DAY_AS_STR')
+MODEL_DAY_AS_STR = getenv('MODEL_DAY_AS_STR')
 UNIQUE_HASH = getenv('UNIQUE_HASH')
 
 TRAINING_OR_PREDICTION = getenv('TRAINING_OR_PREDICTION')
@@ -16,10 +16,10 @@ MORPHL_CASSANDRA_PASSWORD = getenv('MORPHL_CASSANDRA_PASSWORD')
 MORPHL_CASSANDRA_KEYSPACE = getenv('MORPHL_CASSANDRA_KEYSPACE')
 
 HDFS_PORT = 9000
-HDFS_DIR_TRAINING = f'hdfs://{MORPHL_SERVER_IP_ADDRESS}:{HDFS_PORT}/{DAY_AS_STR}_{UNIQUE_HASH}_ga_chp_preproc_training'
-HDFS_DIR_PREDICTION = f'hdfs://{MORPHL_SERVER_IP_ADDRESS}:{HDFS_PORT}/{DAY_AS_STR}_{UNIQUE_HASH}_ga_chp_preproc_prediction'
+HDFS_DIR_TRAINING = f'hdfs://{MORPHL_SERVER_IP_ADDRESS}:{HDFS_PORT}/{MODEL_DAY_AS_STR}_{UNIQUE_HASH}_ga_chp_preproc_training'
+HDFS_DIR_PREDICTION = f'hdfs://{MORPHL_SERVER_IP_ADDRESS}:{HDFS_PORT}/{MODEL_DAY_AS_STR}_{UNIQUE_HASH}_ga_chp_preproc_prediction'
 
-CHURN_THRESHOLD_FILE = f'{MODELS_DIR}/{DAY_AS_STR}_{UNIQUE_HASH}_ga_chp_churn_threshold.txt'
+CHURN_THRESHOLD_FILE = f'{MODELS_DIR}/{MODEL_DAY_AS_STR}_{UNIQUE_HASH}_ga_chp_churn_threshold.txt'
 
 primary_key = {}
 

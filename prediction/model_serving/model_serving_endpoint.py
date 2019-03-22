@@ -55,7 +55,7 @@ class Cassandra:
         template_for_single_row = 'SELECT * FROM ga_chp_predictions WHERE client_id = ? LIMIT 1'
         template_for_multiple_rows = 'SELECT client_id, prediction FROM ga_chp_predictions_by_prediction_date WHERE prediction_date = ?'
         template_for_predictions_statistics = 'SELECT loyal, neutral, churning, lost FROM ga_chp_predictions_statistics WHERE prediction_date= ? LIMIT 1'
-        template_for_models_rows = 'SELECT accuracy, loss, day_as_str FROM ga_chp_valid_models WHERE is_model_valid = True LIMIT 20 ALLOW FILTERING'
+        template_for_models_rows = 'SELECT accuracy, loss, model_day_as_str FROM ga_chp_valid_models WHERE is_model_valid = True LIMIT 20 ALLOW FILTERING'
         template_for_access_log_insert = 'INSERT INTO ga_chp_predictions_access_logs (client_id, tstamp, prediction) VALUES (?,?,?)'
 
         self.prep_stmts['predictions']['single'] = self.session.prepare(
@@ -103,7 +103,7 @@ class Cassandra:
 
     def get_statistics(self, date):
         bind_list = [date]
-        
+
         response = self.session.execute(
             self.prep_stmts['predictions']['statistics'], bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
 
