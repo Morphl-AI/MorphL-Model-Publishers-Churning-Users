@@ -90,7 +90,7 @@ task_6_move_scaled_features_metadata_cmd = ' '.join(task_6_move_scaled_features_
 task_7_run_batch_inference_cmd_parts = [
     f'MODEL_DAY_AS_STR={model_day_as_str}',
     f'UNIQUE_HASH={unique_hash}',
-    'DAY_AS_STRING={{ ds }}',
+    'DAY_AS_STR={{ ds }}',
     'TRAINING_OR_PREDICTION=prediction',
     'MODELS_DIR=/opt/models',
     'docker run --rm --net host',
@@ -100,7 +100,7 @@ task_7_run_batch_inference_cmd_parts = [
     '-e ENVIRONMENT_TYPE',
     '-e MODEL_DAY_AS_STR',
     '-e UNIQUE_HASH',
-    '-e DAY_AS_STRING',
+    '-e DAY_AS_STR',
     '-e TRAINING_OR_PREDICTION',
     '-e MODELS_DIR',
     '-e MORPHL_SERVER_IP_ADDRESS',
