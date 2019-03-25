@@ -135,15 +135,15 @@ CREATE TABLE morphl.ga_chp_predictions_access_logs (
 
 CREATE TABLE morphl.ga_chp_valid_models (
   always_zero int,
-  model_day_as_str text,
+  day_as_str text,
   tstamp timestamp,
   unique_hash text,
   threshold double,
   accuracy double,
   loss double,
   is_model_valid boolean,
-  PRIMARY KEY ((always_zero), model_day_as_str, tstamp, unique_hash)
-) WITH CLUSTERING ORDER BY (model_day_as_str DESC, tstamp DESC);
+  PRIMARY KEY ((always_zero), day_as_str, tstamp, unique_hash)
+) WITH CLUSTERING ORDER BY (day_as_str DESC, tstamp DESC);
 
 CREATE TABLE morphl.ga_chp_config_parameters (
   morphl_component_name text,
