@@ -8,7 +8,7 @@ The purpose of this class is to take a dask dataframe on initialization, train a
 
 Make sure the following environment variables are set:
 
-    - DAY_AS_STR: the current day as a string.
+    - MODEL_DAY_AS_STR: the current day as a string.
     - UNIQUE_HASH: a unique hash that will be attributed to the model and scores files.
     - MODELS_DIR: the models directory.
 

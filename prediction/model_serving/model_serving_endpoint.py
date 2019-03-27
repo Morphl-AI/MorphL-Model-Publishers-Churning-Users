@@ -103,7 +103,7 @@ class Cassandra:
 
     def get_statistics(self, date):
         bind_list = [date]
-        
+
         response = self.session.execute(
             self.prep_stmts['predictions']['statistics'], bind_list, timeout=self.CASS_REQ_TIMEOUT)._current_rows
 
