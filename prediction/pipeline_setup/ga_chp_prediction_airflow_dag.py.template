@@ -2,13 +2,14 @@ import datetime
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 
-args = { 'owner': 'airflow',
-         'start_date': START_DATE_AS_PY_CODE,
-         'retries': 16,
-         'retry_delay': datetime.timedelta(minutes=30) }
+args = {'owner': 'airflow',
+        'start_date': START_DATE_AS_PY_CODE,
+        'retries': 16,
+        'retry_delay': datetime.timedelta(minutes=30)}
 
 dag = DAG(dag_id='ga_chp_prediction_pipeline',
-          default_args=args)
+          default_args=args,
+          schedule_interval='0 2 * * *')
 
 try:
     with open('/tmp/ga_chp_prediction_pipeline_model_day_as_str.txt', 'r') as f:
@@ -49,14 +50,16 @@ task_3_run_basic_preprocessor_cmd_parts = [
     '-e MORPHL_CASSANDRA_PASSWORD',
     'pysparkcontainer',
     'bash /opt/ga_chp/pre_processing/basic_processing/runbasicpreprocessor.sh ']
-task_3_run_basic_preprocessor_cmd = ' '.join(task_3_run_basic_preprocessor_cmd_parts)
+task_3_run_basic_preprocessor_cmd = ' '.join(
+    task_3_run_basic_preprocessor_cmd_parts)
 
 # Do not remove the extra space at the end (the one after 'ga_chp_preproc_prediction')
 task_4_move_preproc_metadata_cmd_parts = [
     f'MODEL_DAY_AS_STR={model_day_as_str}',
     f'UNIQUE_HASH={unique_hash}',
     'bash /opt/ga_chp/pre_processing/ga_chp_move_metadata.sh ga_chp_preproc_prediction ']
-task_4_move_preproc_metadata_cmd = ' '.join(task_4_move_preproc_metadata_cmd_parts)
+task_4_move_preproc_metadata_cmd = ' '.join(
+    task_4_move_preproc_metadata_cmd_parts)
 
 # Do not remove the extra space at the end (the one after 'runadvancedpreprocessor.sh')
 task_5_run_advanced_preprocessor_cmd_parts = [
@@ -77,14 +80,16 @@ task_5_run_advanced_preprocessor_cmd_parts = [
     '-e LIBHDFS3_CONF',
     'pythoncontainer',
     'bash /opt/ga_chp/pre_processing/scaling_transformation/runadvancedpreprocessor.sh ']
-task_5_run_advanced_preprocessor_cmd = ' '.join(task_5_run_advanced_preprocessor_cmd_parts)
+task_5_run_advanced_preprocessor_cmd = ' '.join(
+    task_5_run_advanced_preprocessor_cmd_parts)
 
 # Do not remove the extra space at the end (the one after 'ga_chp_scaled_features_prediction')
 task_6_move_scaled_features_metadata_cmd_parts = [
     f'MODEL_DAY_AS_STR={model_day_as_str}',
     f'UNIQUE_HASH={unique_hash}',
     'bash /opt/ga_chp/pre_processing/ga_chp_move_metadata.sh ga_chp_scaled_features_prediction ']
-task_6_move_scaled_features_metadata_cmd = ' '.join(task_6_move_scaled_features_metadata_cmd_parts)
+task_6_move_scaled_features_metadata_cmd = ' '.join(
+    task_6_move_scaled_features_metadata_cmd_parts)
 
 # Do not remove the extra space at the end (the one after 'runbatchinference.sh')
 task_7_run_batch_inference_cmd_parts = [
@@ -152,6 +157,6 @@ task_2_truncate_tables.set_upstream(task_1_generate_id_files_prediction)
 task_3_run_basic_preprocessor.set_upstream(task_2_truncate_tables)
 task_4_move_preproc_metadata.set_upstream(task_3_run_basic_preprocessor)
 task_5_run_advanced_preprocessor.set_upstream(task_4_move_preproc_metadata)
-task_6_move_scaled_features_metadata.set_upstream(task_5_run_advanced_preprocessor)
+task_6_move_scaled_features_metadata.set_upstream(
+    task_5_run_advanced_preprocessor)
 task_7_run_batch_inference.set_upstream(task_6_move_scaled_features_metadata)
-

@@ -2,14 +2,14 @@ import datetime
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 
-args = { 'owner': 'airflow',
-         'start_date': START_DATE_AS_PY_CODE,
-         'retries': 16,
-         'retry_delay': datetime.timedelta(minutes=30) }
+args = {'owner': 'airflow',
+        'start_date': START_DATE_AS_PY_CODE,
+        'retries': 16,
+        'retry_delay': datetime.timedelta(minutes=30)}
 
 dag = DAG(dag_id='ga_chp_ingestion_pipeline',
           default_args=args,
-          schedule_interval='0 12 * * *')
+          schedule_interval='0 1 * * *')
 
 # Do not remove the extra space at the end (the one after 'runconnector.sh')
 task_1_run_connector_cmd_parts = [
@@ -40,5 +40,5 @@ task_2_preflight_check_before_prediction_pipeline = BashOperator(
     bash_command='bash /opt/ga_chp/ingestion/preflight_check/ga_chp_preflight_check_before_prediction_pipeline.sh ',
     dag=dag)
 
-task_2_preflight_check_before_prediction_pipeline.set_upstream(task_1_run_connector)
-
+task_2_preflight_check_before_prediction_pipeline.set_upstream(
+    task_1_run_connector)
