@@ -175,7 +175,17 @@ class GoogleAnalytics:
         metrics = ['sessions', 'sessionDuration', 'entrances',
                    'bounces', 'exits', 'pageValue', 'pageLoadTime', 'pageLoadSample']
 
-        return self.run_report_and_store('users', dimensions, metrics)
+        dimensions_filters = [
+            {
+                'filters': {
+                    'dimensionName': 'ga:userType',
+                    'operator': 'EXACT',
+                    'expressions': ['Returning Visitor']
+                },
+            },
+        ]
+
+        return self.run_report_and_store('users', dimensions, metrics, dimensions_filters)
 
     # Get churned users with additional session data
     def store_sessions(self):
@@ -184,7 +194,17 @@ class GoogleAnalytics:
         metrics = ['sessions', 'pageviews', 'uniquePageviews',
                    'screenViews', 'hits', 'timeOnPage']
 
-        return self.run_report_and_store('sessions', dimensions, metrics)
+        dimensions_filters = [
+            {
+                'filters': {
+                    'dimensionName': 'ga:userType',
+                    'operator': 'EXACT',
+                    'expressions': ['Returning Visitor']
+                },
+            },
+        ]
+
+        return self.run_report_and_store('sessions', dimensions, metrics, dimensions_filters)
 
     def run(self):
         self.authenticate()
