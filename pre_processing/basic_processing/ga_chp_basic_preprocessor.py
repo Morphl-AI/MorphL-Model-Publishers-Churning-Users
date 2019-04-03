@@ -416,6 +416,7 @@ def main():
         'client_id,',
         'SUM(pageviews) OVER (PARTITION BY client_id) AS pageviews,'
         'SUM(unique_pageviews) OVER (PARTITION BY client_id) AS unique_pageviews,'
+        'SUM(hits) OVER (PARTITION BY client_id) AS hits,'
         'SUM(time_on_page) OVER (PARTITION BY client_id) AS time_on_page,'
         'SUM(u_sessions) OVER (PARTITION BY client_id) AS u_sessions,'
         'SUM(session_duration) OVER (PARTITION BY client_id) AS session_duration,'
@@ -470,7 +471,7 @@ def main():
                 .withColumn('churned', f.when(
                     f.col('days_since_last_session') > churn_threshold, 1.0).otherwise(0.0))
                 .select('client_id',
-                        'pageviews', 'unique_pageviews', 'time_on_page',
+                        'pageviews', 'unique_pageviews', 'hits', 'time_on_page',
                         'u_sessions', 'session_duration',
                         'entrances', 'bounces', 'exits', 'session_count',
                         'is_desktop', 'is_mobile', 'is_tablet',
@@ -517,7 +518,7 @@ def main():
         final_df = (
             grouped_by_client_id_df
                 .select('client_id',
-                        'pageviews', 'unique_pageviews', 'time_on_page',
+                        'pageviews', 'unique_pageviews', 'hits', 'time_on_page',
                         'u_sessions', 'session_duration',
                         'entrances', 'bounces', 'exits', 'session_count',
                         'is_desktop', 'is_mobile', 'is_tablet')
