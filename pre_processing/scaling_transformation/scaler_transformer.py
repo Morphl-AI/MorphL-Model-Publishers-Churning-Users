@@ -31,7 +31,7 @@ class ScalerTransformer:
 
     def __init__(self, dask_df):
         """Inits ScalerTransformer with the given dask dataframe, labels and environment variables."""
-        self.num_labels = ['pageviews', 'unique_pageviews',
+        self.num_labels = ['pageviews', 'unique_pageviews', 'hits',
                            'u_sessions', 'entrances', 'bounces', 'exits', 'session_count']
         self.gauss_labels = ['session_duration', 'time_on_page']
         self.cat_labels = ['is_desktop', 'is_mobile', 'is_tablet']
