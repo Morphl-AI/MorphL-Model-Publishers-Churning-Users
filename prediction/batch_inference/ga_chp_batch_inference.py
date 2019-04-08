@@ -7,12 +7,13 @@ from keras.models import load_model
 import dask.dataframe as dd
 
 DAY_AS_STR = getenv('DAY_AS_STR')
+MODEL_DAY_AS_STR = getenv('MODEL_DAY_AS_STR')
 UNIQUE_HASH = getenv('UNIQUE_HASH')
 
 MORPHL_SERVER_IP_ADDRESS = getenv('MORPHL_SERVER_IP_ADDRESS')
 
 HDFS_PORT = 9000
-HDFS_DIR_INPUT = f'hdfs://{MORPHL_SERVER_IP_ADDRESS}:{HDFS_PORT}/{DAY_AS_STR}_{UNIQUE_HASH}_ga_chp_scaled_features_prediction'
+HDFS_DIR_INPUT = f'hdfs://{MORPHL_SERVER_IP_ADDRESS}:{HDFS_PORT}/{MODEL_DAY_AS_STR}_{UNIQUE_HASH}_ga_chp_scaled_features_prediction'
 
 
 class Cassandra:
@@ -48,11 +49,14 @@ class Cassandra:
 
         loyal = series_obj[series_obj <= 0.4].count().compute()
 
-        neutral = series_obj[(series_obj  > 0.4) & (series_obj <= 0.6)].count().compute()
+        neutral = series_obj[(series_obj > 0.4) & (
+            series_obj <= 0.6)].count().compute()
 
-        churning = series_obj[(series_obj > 0.6) & (series_obj <= 0.9)].count().compute()
+        churning = series_obj[(series_obj > 0.6) & (
+            series_obj <= 0.9)].count().compute()
 
-        lost = series_obj[(series_obj > 0.9) & (series_obj <= 1)].count().compute()
+        lost = series_obj[(series_obj > 0.9) & (
+            series_obj <= 1)].count().compute()
 
         bind_list = [loyal, neutral, churning, lost, DAY_AS_STR]
 
@@ -73,7 +77,7 @@ class Cassandra:
 
 
 def batch_inference_on_partition(partition_df):
-    churn_model_file = f'/opt/models/{DAY_AS_STR}_{UNIQUE_HASH}_ga_chp_churn_model.h5'
+    churn_model_file = f'/opt/models/{MODEL_DAY_AS_STR}_{UNIQUE_HASH}_ga_chp_churn_model.h5'
     churn_model = load_model(churn_model_file)
     prediction = churn_model.predict(
         partition_df.drop(['client_id'], axis=1))[0][0]
@@ -82,7 +86,8 @@ def batch_inference_on_partition(partition_df):
 
 def persist_partition(partition_df):
     def persist_one_prediction(series_obj):
-        cassandra.save_prediction_by_date(series_obj.client_id, series_obj.prediction)
+        cassandra.save_prediction_by_date(
+            series_obj.client_id, series_obj.prediction)
         cassandra.save_prediction(series_obj.client_id, series_obj.prediction)
     cassandra = Cassandra()
     partition_df.apply(persist_one_prediction, axis=1)

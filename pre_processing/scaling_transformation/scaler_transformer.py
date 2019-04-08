@@ -21,7 +21,7 @@ class ScalerTransformer:
         gauss_labels: The labels of the columns which represent amounts of time, used to determine which columns to logarithmize.
         cat_labels: The labels for categorical data.
         dask_df: The dataframe that the class is initialized with. Must be a Dask type dataframe.
-        day_as_str: Environment variable that contains the day of the last training as a string.
+        model_day_as_str: Environment variable that contains the day of the last training as a string.
         unique_hash: Environment variable that contains a hash generated when the data is processed for training. This helps us distinguish between transformations that occured
                     on the same day.
         training_or_prediction: Environment variable that contains the string "training" or the string "prediction" depending on whether the data
@@ -31,12 +31,12 @@ class ScalerTransformer:
 
     def __init__(self, dask_df):
         """Inits ScalerTransformer with the given dask dataframe, labels and environment variables."""
-        self.num_labels = ['pageviews', 'unique_pageviews',
+        self.num_labels = ['pageviews', 'unique_pageviews', 'hits',
                            'u_sessions', 'entrances', 'bounces', 'exits', 'session_count']
         self.gauss_labels = ['session_duration', 'time_on_page']
         self.cat_labels = ['is_desktop', 'is_mobile', 'is_tablet']
         self.dask_df = dask_df
-        self.day_as_str = getenv('DAY_AS_STR')
+        self.model_day_as_str = getenv('MODEL_DAY_AS_STR')
         self.unique_hash = getenv('UNIQUE_HASH')
         self.training_or_prediction = getenv('TRAINING_OR_PREDICTION')
         self.models_dir = getenv('MODELS_DIR')
@@ -59,7 +59,7 @@ class ScalerTransformer:
             # For each column, compose the path and name of the file which holds the
             # 'PowerTransformer' object with the fitted lambdas using the model directory,
             # the day of the last training (current day if we are preprocessing for training) and a unique hash.
-            pkl_file = f'{self.models_dir}/{self.day_as_str}_{self.unique_hash}_ga_chp_box_cox_{column}.pkl'
+            pkl_file = f'{self.models_dir}/{self.model_day_as_str}_{self.unique_hash}_ga_chp_box_cox_{column}.pkl'
 
             # If predicting load the specific 'PowerTransformer' object for this column and apply the transformation.
             if self.training_or_prediction == 'prediction':
@@ -88,7 +88,7 @@ class ScalerTransformer:
             bc_array, chunksize=200000, columns=self.num_labels)
 
         # Generate a similar .pkl file name and path for the 'Pipeline' type object with the fitted hyperparameters.
-        pkl_file = f'{self.models_dir}/{self.day_as_str}_{self.unique_hash}_ga_chp_pipeline.pkl'
+        pkl_file = f'{self.models_dir}/{self.model_day_as_str}_{self.unique_hash}_ga_chp_pipeline.pkl'
 
         # If predicting, load the pipeline and use it to transform the data.
         if self.training_or_prediction == 'prediction':
