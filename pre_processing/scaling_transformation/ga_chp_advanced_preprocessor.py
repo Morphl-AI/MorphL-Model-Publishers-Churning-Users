@@ -47,7 +47,7 @@ def extract(row):
     return (row.client_id, ) + tuple(row.scaledFeatures.toArray().tolist())
 
 
-def process_dataframe(client, spark_session, hdfs_dir_input, hdfs_dir_output):
+def process_dataframe(spark_session, hdfs_dir_input, hdfs_dir_output):
 
     numeric_features = ['pageviews', 'unique_pageviews', 'u_sessions',
                         'entrances', 'bounces', 'exits', 'session_count']
@@ -147,10 +147,10 @@ def main():
     log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
 
     if TRAINING_OR_PREDICTION == 'training':
-        process_dataframe(client, spark_session, HDFS_DIR_INPUT_TRAINING,
+        process_dataframe(spark_session, HDFS_DIR_INPUT_TRAINING,
                           HDFS_DIR_OUTPUT_TRAINING)
     else:
-        process_dataframe(client, spark_session, HDFS_DIR_INPUT_PREDICTION,
+        process_dataframe(spark_session, HDFS_DIR_INPUT_PREDICTION,
                           HDFS_DIR_OUTPUT_PREDICTION)
 
 
