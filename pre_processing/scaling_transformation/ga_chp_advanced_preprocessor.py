@@ -1,5 +1,4 @@
 from os import getenv
-from distributed import Client
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, pandas_udf
@@ -147,7 +146,6 @@ def main():
     log4j = spark_session.sparkContext._jvm.org.apache.log4j
     log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
 
-    client = Client()
     if TRAINING_OR_PREDICTION == 'training':
         process_dataframe(client, spark_session, HDFS_DIR_INPUT_TRAINING,
                           HDFS_DIR_OUTPUT_TRAINING)
