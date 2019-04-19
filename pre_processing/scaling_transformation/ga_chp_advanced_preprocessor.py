@@ -49,7 +49,7 @@ def extract(row):
 
 def process_dataframe(spark_session, hdfs_dir_input, hdfs_dir_output):
 
-    numeric_features = ['pageviews', 'unique_pageviews', 'u_sessions',
+    numeric_features = ['pageviews', 'unique_pageviews', 'hits', 'u_sessions',
                         'entrances', 'bounces', 'exits', 'session_count']
 
     add_one = pandas_udf(add_one_func, returnType=FloatType())
@@ -63,6 +63,8 @@ def process_dataframe(spark_session, hdfs_dir_input, hdfs_dir_output):
                                             'pageviews'),
                                         add_one(col('unique_pageviews')).alias(
                                             'unique_pageviews'),
+                                        add_one(col('hits')).alias(
+                                            'hits'),
                                         add_one(col('u_sessions')).alias(
                                             'u_sessions'),
                                         add_one(col('entrances')).alias(
@@ -80,6 +82,8 @@ def process_dataframe(spark_session, hdfs_dir_input, hdfs_dir_output):
                                                                'pageviews'),
                                                            box_cox(col('unique_pageviews')).alias(
                                                                'unique_pageviews'),
+                                                           box_cox(col('hits')).alias(
+                                                               'hits'),
                                                            box_cox(col('u_sessions')).alias(
                                                                'u_sessions'),
                                                            box_cox(col('entrances')).alias(
@@ -117,21 +121,22 @@ def process_dataframe(spark_session, hdfs_dir_input, hdfs_dir_output):
 
     model = pipeline.fit(df_first_part_box_cox)
 
-    result = model.transform(df_first_part_box_cox).drop('pageviews', 'unique_pageviews', 'u_sessions',
+    result = model.transform(df_first_part_box_cox).drop('pageviews', 'unique_pageviews', 'hits', 'u_sessions',
                                                          'entrances', 'bounces', 'exits', 'session_count', 'features', 'normFeatures', 'scaled')
 
-    final_df_first_part = (result.rdd.map(extract).toDF(['client_id', "scaledFeatures"]).
+    final_df_first_part = (result.rdd.map(extract).repartition(32).toDF(['client_id']).
                            withColumnRenamed('_2', 'pageviews').
                            withColumnRenamed('_3', 'unique_pageviews').
-                           withColumnRenamed('_4', 'u_sessions').
-                           withColumnRenamed('_5', 'entrances').
-                           withColumnRenamed('_6', 'bounces').
-                           withColumnRenamed('_7', 'exits').
-                           withColumnRenamed('_8', 'session_count').drop('scaledFeatures'))
+                           withColumnRenamed('_4', 'hits').
+                           withColumnRenamed('_5', 'u_sessions').
+                           withColumnRenamed('_6', 'entrances').
+                           withColumnRenamed('_7', 'bounces').
+                           withColumnRenamed('_8', 'exits').
+                           withColumnRenamed('_9', 'session_count').drop('scaledFeatures'))
 
     final_df = final_df_first_part.join(df_second_part, 'client_id')
 
-    final_df.repartition(numPartitions=32).to_parquet(hdfs_dir_output)
+    final_df.repartition(numPartitions=32).write.parquet(hdfs_dir_output)
 
 
 def main():
