@@ -22,7 +22,7 @@ MODEL_FILE_DIR = f'{MODELS_DIR}/{MODEL_DAY_AS_STR}_{UNIQUE_HASH}_ga_chp_churn_mo
 def main():
     spark_session = (
         SparkSession.builder
-        .appName('preprocessor')
+        .appName('model_generator')
         .master('local[*]')
         .config('spark.sql.shuffle.partitions', 16)
         .config('parquet.enable.summary-metadata', 'true')
