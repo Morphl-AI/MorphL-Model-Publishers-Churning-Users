@@ -97,7 +97,10 @@ def process_dataframe(spark_session, hdfs_dir_input, hdfs_dir_output):
                                                            )
                              )
 
-    df_second_part = (df.select('client_id', 'churned', 'is_desktop', 'is_mobile', 'is_tablet',
+    second_part_columns = ['client_id', 'churned', 'is_desktop', 'is_mobile',
+                           'is_tablet'] if TRAINING_OR_PREDICTION == 'training' else ['client_id', 'is_desktop', 'is_mobile', 'is_tablet']
+
+    df_second_part = (df.select(*second_part_columns,
                                 log(col('session_duration')).alias(
                                     'session_duration'),
                                 log(col('time_on_page')).alias(
