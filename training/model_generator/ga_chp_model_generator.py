@@ -40,14 +40,14 @@ def main():
     # All sets are computed so we can operate on them. The output label 'churned
     # is dropped and placed into a separate set.
     sets['train_X'] = train_set.drop(
-        'churned').toPandas().drop('index', axis=1)
+        'churned').toPandas()
     sets['train_Y'] = train_set.select('churned').toPandas()
 
     sets['validation_X'] = validation_set.drop(
-        'churned').toPandas().drop('index', axis=1)
+        'churned').toPandas()
     sets['validation_Y'] = validation_set.select('churned').toPandas()
 
-    sets['test_X'] = test_set.drop('churned').toPandas().drop('index', axis=1)
+    sets['test_X'] = test_set.drop('churned').toPandas()
     sets['test_Y'] = test_set.select('churned').toPandas()
 
     model = Sequential()
