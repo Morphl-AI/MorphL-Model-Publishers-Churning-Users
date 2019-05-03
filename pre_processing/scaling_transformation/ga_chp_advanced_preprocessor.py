@@ -139,7 +139,11 @@ def process_dataframe(spark_session, hdfs_dir_input, hdfs_dir_output):
 
     final_df = final_df_first_part.join(df_second_part, 'client_id')
 
-    final_df.repartition(numPartitions=32).write.parquet(hdfs_dir_output)
+    if TRAINING_OR_PREDICTION == 'training':
+        final_df.drop('client_id').repartition(
+            numPartitions=32).write.parquet(hdfs_dir_output)
+    else:
+        final_df.repartition(numPartitions=32).write.parquet(hdfs_dir_output)
 
 
 def main():
