@@ -42,7 +42,8 @@ def update_predictions_statistics(predictions_df):
     spark_session_cass = cluster.connect(MORPHL_CASSANDRA_KEYSPACE)
 
     prep_stmt_predictions_statistics = spark_session_cass.prepare(
-        'UPDATE ga_chp_predictions_statistics SET loyal=loyal+?, neutral=neutral+?, churning=churning+?, lost=lost+? WHERE prediction_date=?')
+        'INSERT INTO ga_chp_predictions_statistics (prediction_date, loyal, neutral, churning, lost) VALUES (?,?,?,?,?)'
+    )
 
     loyal = predictions_df.filter('prediction < 0.4').count()
     neutral = predictions_df.filter(
@@ -52,7 +53,7 @@ def update_predictions_statistics(predictions_df):
     lost = predictions_df.filter(
         '(prediction > 0.9) and (prediction <= 1.0)').count()
 
-    bind_list = [loyal, neutral, churning, lost, DAY_AS_STR]
+    bind_list = [DAY_AS_STR, loyal, neutral, churning, lost]
 
     spark_session_cass.execute(
         prep_stmt_predictions_statistics, bind_list, timeout=CASS_REQ_TIMEOUT)
