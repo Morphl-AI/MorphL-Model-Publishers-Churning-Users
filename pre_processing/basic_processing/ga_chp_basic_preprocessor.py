@@ -447,13 +447,16 @@ def main():
     grouped_by_client_id_before_dedup_df = spark_session.sql(
         grouped_by_client_id_before_dedup_sql)
 
+    grouped_by_client_id_before_dedup_df.createOrReplaceTempView(
+        'grouped_by_client_id_before_dedup')
+
     # Remove duplicate rows from the same day
     grouped_by_client_id_by_day_sql = 'SELECT * FROM grouped_by_client_id_before_dedup WHERE rownum = 1'
     grouped_by_client_id_by_day_df = spark_session.sql(
         grouped_by_client_id_by_day_sql)
 
     # Aggregate data by user
-    aggregated_data_by_client_id_df = (features_raw_df
+    aggregated_data_by_client_id_df = (grouped_by_client_id_by_day_df
                                        .select(
                                            'client_id',
                                            'pageviews',
