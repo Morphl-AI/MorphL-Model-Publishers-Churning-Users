@@ -419,43 +419,69 @@ def main():
      .save())
 
     # Using window functions: https://databricks.com/blog/2015/07/15/introducing-window-functions-in-spark-sql.html
-    grouped_by_client_id_before_dedup_sql_parts = [
+    grouped_by_client_id_before_dedup_sql_parts = grouped_by_client_id_before_dedup_sql_parts = [
         'SELECT',
         'client_id,',
         'SUM(pageviews) OVER (PARTITION BY client_id) AS pageviews,'
         'SUM(unique_pageviews) OVER (PARTITION BY client_id) AS unique_pageviews,'
         'SUM(hits) OVER (PARTITION BY client_id) AS hits,'
         'SUM(time_on_page) OVER (PARTITION BY client_id) AS time_on_page,'
-        'FIRST_VALUE(is_desktop) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS is_desktop,'
-        'FIRST_VALUE(is_mobile) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS is_mobile,'
-        'FIRST_VALUE(is_tablet) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS is_tablet,'
-        'FIRST_VALUE(session_count) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS session_count,'
+        'FIRST_VALUE(u_sessions) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS u_sessions,'
+        'FIRST_VALUE(session_duration) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS session_duration,'
+        'FIRST_VALUE(entrances) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS entrances,'
+        'FIRST_VALUE(bounces) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS bounces,'
+        'FIRST_VALUE(exits) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS exits,'
+        'FIRST_VALUE(is_desktop) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS is_desktop,'
+        'FIRST_VALUE(is_mobile) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS is_mobile,'
+        'FIRST_VALUE(is_tablet) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS is_tablet,'
+        'FIRST_VALUE(session_count) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS session_count,'
         'FIRST_VALUE(days_since_last_session) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS days_since_last_session,',
-        'ROW_NUMBER() OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS rownum,',
+        'ROW_NUMBER() OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS rownum,',
         'AVG(days_since_last_session) OVER (PARTITION BY client_id) AS avgdays',
         'FROM',
         'features_raw'
     ]
+
     grouped_by_client_id_before_dedup_sql = ' '.join(
         grouped_by_client_id_before_dedup_sql_parts)
     grouped_by_client_id_before_dedup_df = spark_session.sql(
         grouped_by_client_id_before_dedup_sql)
-    grouped_by_client_id_before_dedup_df.createOrReplaceTempView(
-        'grouped_by_client_id_before_dedup')
 
+    # Remove duplicate rows from the same day
+    grouped_by_client_id_by_day_sql = 'SELECT * FROM grouped_by_client_id_before_dedup WHERE rownum = 1'
+    grouped_by_client_id_by_day_df = spark_session.sql(
+        grouped_by_client_id_by_day_sql)
+
+    # Aggregate data by user
     aggregated_data_by_client_id_df = (features_raw_df
                                        .select(
                                            'client_id',
+                                           'pageviews',
+                                           'unique_pageviews',
+                                           'hits',
+                                           'time_on_page',
                                            'u_sessions',
                                            'session_duration',
                                            'entrances',
                                            'bounces',
                                            'exits',
-                                           'day_of_data_capture'
+                                           'is_desktop',
+                                           'is_mobile',
+                                           'is_tablet',
+                                           'session_count',
+                                           'days_since_last_session',
+                                           'avgdays'
                                        )
-                                       .distinct()
                                        .groupBy('client_id')
                                        .agg(
+                                           f.first('pageviews').alias(
+                                               'pageviews'),
+                                           f.first('unique_pageviews').alias(
+                                               'unique_pageviews'),
+                                           f.first('hits').alias(
+                                               'hits'),
+                                           f.first('time_on_page').alias(
+                                               'time_on_page'),
                                            f.sum('u_sessions').alias(
                                                'u_sessions'),
                                            f.sum('session_duration').alias(
@@ -463,18 +489,23 @@ def main():
                                            f.sum('entrances').alias(
                                                'entrances'),
                                            f.sum('bounces').alias('bounces'),
-                                           f.sum('exits').alias('exits')
+                                           f.sum('exits').alias('exits'),
+                                           f.first('is_desktop').alias(
+                                               'is_desktop'),
+                                           f.first('is_mobile').alias(
+                                               'is_mobile'),
+                                           f.first('is_tablet').alias(
+                                               'is_tablet'),
+                                           f.max('session_count').alias(
+                                               'session_count'),
+                                           f.first('days_since_last_session').alias(
+                                               'days_since_last_session'),
+                                           f.first('avgdays').alias(
+                                               'avgdays')
                                        )
                                        )
 
-    # Only keeping the most recent record from every client id
-    # rownum = 1 while day_of_data_capture is sorted in descending order
-    grouped_by_client_id_sql = 'SELECT * FROM grouped_by_client_id_before_dedup WHERE rownum = 1'
-    grouped_by_client_id_df = spark_session.sql(grouped_by_client_id_sql).join(
-        aggregated_data_by_client_id_df, 'client_id', 'inner')
-    grouped_by_client_id_df.createOrReplaceTempView('grouped_by_client_id')
-
-    # The schema for grouped_by_client_id_df is:
+    # The schema for aggregated_data_by_client_id_df is:
     # |-- client_id: string (nullable = true)
     # |-- pageviews: double (nullable = true)
     # |-- unique_pageviews: double (nullable = true)
@@ -489,7 +520,6 @@ def main():
     # |-- is_tablet: double (nullable = true)
     # |-- session_count: float (nullable = true)
     # |-- days_since_last_session: float (nullable = true)
-    # |-- rownum: integer (nullable = true)
     # |-- avgdays: double (nullable = true)
 
     if TRAINING_OR_PREDICTION == 'training':
@@ -499,7 +529,7 @@ def main():
         churn_threshold = mean_value_of_avg_days_df.first().mean_value_of_avgdays
 
         final_df = (
-            grouped_by_client_id_df
+            aggregated_data_by_client_id_df
             .withColumn('churned', f.when(
                 f.col('days_since_last_session') > churn_threshold, 1.0).otherwise(0.0))
             .select('client_id',
@@ -548,7 +578,7 @@ def main():
             churn_threshold = fh.read().strip()
 
         final_df = (
-            grouped_by_client_id_df
+            aggregated_data_by_client_id_df
             .select('client_id',
                     'pageviews', 'unique_pageviews', 'hits', 'time_on_page',
                     'u_sessions', 'session_duration',
