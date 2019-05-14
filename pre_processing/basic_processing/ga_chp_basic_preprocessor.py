@@ -508,6 +508,10 @@ def main():
                                        )
                                        )
 
+    aggregated_data_by_client_id_df.cache()
+    aggregated_data_by_client_id_df.createOrReplaceTempView(
+        'aggregated_data_by_client_id')
+
     # The schema for aggregated_data_by_client_id_df is:
     # |-- client_id: string (nullable = true)
     # |-- pageviews: double (nullable = true)
@@ -526,7 +530,7 @@ def main():
     # |-- avgdays: double (nullable = true)
 
     if TRAINING_OR_PREDICTION == 'training':
-        mean_value_of_avg_days_sql = 'SELECT AVG(avgdays) mean_value_of_avgdays FROM aggregated_data_by_client_id_df'
+        mean_value_of_avg_days_sql = 'SELECT AVG(avgdays) mean_value_of_avgdays FROM aggregated_data_by_client_id'
         mean_value_of_avg_days_df = spark_session.sql(
             mean_value_of_avg_days_sql)
         churn_threshold = mean_value_of_avg_days_df.first().mean_value_of_avgdays
