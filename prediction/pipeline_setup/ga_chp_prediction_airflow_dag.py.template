@@ -78,7 +78,7 @@ task_5_run_advanced_preprocessor_cmd_parts = [
     '-e MODELS_DIR',
     '-e MORPHL_SERVER_IP_ADDRESS',
     '-e LIBHDFS3_CONF',
-    'pythoncontainer',
+    'pysparkcontainer',
     'bash /opt/ga_chp/pre_processing/scaling_transformation/runadvancedpreprocessor.sh ']
 task_5_run_advanced_preprocessor_cmd = ' '.join(
     task_5_run_advanced_preprocessor_cmd_parts)
@@ -113,7 +113,7 @@ task_7_run_batch_inference_cmd_parts = [
     '-e MORPHL_CASSANDRA_KEYSPACE',
     '-e MORPHL_CASSANDRA_PASSWORD',
     '-e LIBHDFS3_CONF',
-    'pythoncontainer',
+    'pysparkcontainer',
     'bash /opt/ga_chp/prediction/batch_inference/runbatchinference.sh ']
 task_7_run_batch_inference_cmd = ' '.join(task_7_run_batch_inference_cmd_parts)
 

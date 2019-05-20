@@ -1,5 +1,5 @@
 cp -r /opt/ga_chp /opt/code
 cd /opt/code
 git pull
-python /opt/code/pre_processing/scaling_transformation/ga_chp_advanced_preprocessor.py
+spark-submit --jars /opt/spark/jars/spark-cassandra-connector.jar,/opt/spark/jars/jsr166e.jar /opt/code/pre_processing/scaling_transformation/ga_chp_advanced_preprocessor.py
 

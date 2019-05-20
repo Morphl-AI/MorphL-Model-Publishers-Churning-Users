@@ -23,8 +23,8 @@ CHURN_THRESHOLD_FILE = f'{MODELS_DIR}/{MODEL_DAY_AS_STR}_{UNIQUE_HASH}_ga_chp_ch
 
 primary_key = {}
 
-primary_key['ga_cu_df'] = ['client_id','day_of_data_capture']
-primary_key['ga_cus_df'] = ['client_id','day_of_data_capture','session_id']
+primary_key['ga_cu_df'] = ['client_id', 'day_of_data_capture']
+primary_key['ga_cus_df'] = ['client_id', 'day_of_data_capture', 'session_id']
 
 field_baselines = {}
 
@@ -85,11 +85,12 @@ field_baselines['ga_cus_df'] = [
      'needs_conversion': True}
 ]
 
+
 def fetch_from_cassandra(c_table_name, spark_session):
     load_options = {
         'keyspace': MORPHL_CASSANDRA_KEYSPACE,
         'table': c_table_name,
-        'spark.cassandra.input.fetch.size_in_rows': '150' }
+        'spark.cassandra.input.fetch.size_in_rows': '150'}
 
     df = (spark_session.read.format('org.apache.spark.sql.cassandra')
                             .options(**load_options)
@@ -97,12 +98,14 @@ def fetch_from_cassandra(c_table_name, spark_session):
 
     return df
 
+
 def get_json_schemas(df, spark_session):
     return {
         'json_meta_schema': spark_session.read.json(
             df.limit(10).rdd.map(lambda row: row.json_meta)).schema,
         'json_data_schema': spark_session.read.json(
             df.limit(10).rdd.map(lambda row: row.json_data)).schema}
+
 
 def zip_lists_full_args(json_meta_dimensions,
                         json_meta_metrics,
@@ -116,25 +119,27 @@ def zip_lists_full_args(json_meta_dimensions,
         assert(field_attributes[fname]['original_name'] in orig_meta_fields_set), \
             'The field {} is not part of the input record'
     data_values = json_data_dimensions + json_data_metrics[0].values
-    zip_list_as_dict = dict(zip(orig_meta_fields,data_values))
+    zip_list_as_dict = dict(zip(orig_meta_fields, data_values))
     values = [
         zip_list_as_dict[field_attributes[fname]['original_name']]
-            for fname in schema_as_list]
+        for fname in schema_as_list]
 
     return values
+
 
 def process(df, primary_key, field_baselines):
     schema_as_list = [
         fb['field_name']
-            for fb in field_baselines]
+        for fb in field_baselines]
 
     field_attributes = dict([
-        (fb['field_name'],fb)
-            for fb in field_baselines])
+        (fb['field_name'], fb)
+        for fb in field_baselines])
 
     meta_fields = [
-        'raw_{}'.format(fname) if field_attributes[fname]['needs_conversion'] else fname
-            for fname in schema_as_list]
+        'raw_{}'.format(
+            fname) if field_attributes[fname]['needs_conversion'] else fname
+        for fname in schema_as_list]
 
     schema_before_concat = [
         '{}: string'.format(mf) for mf in meta_fields]
@@ -178,34 +183,36 @@ def process(df, primary_key, field_baselines):
     return {'result_df': result_df,
             'schema_as_list': schema_as_list}
 
+
 def prefix_sessions(fname, c):
     return '{}_sessions'.format(c) if fname == 'sessions' else fname
+
 
 def main():
     spark_session = (
         SparkSession.builder
-                    .appName(APPLICATION_NAME)
-                    .master(MASTER_URL)
-                    .config('spark.cassandra.connection.host', MORPHL_SERVER_IP_ADDRESS)
-                    .config('spark.cassandra.auth.username', MORPHL_CASSANDRA_USERNAME)
-                    .config('spark.cassandra.auth.password', MORPHL_CASSANDRA_PASSWORD)
-                    .config('spark.sql.shuffle.partitions', 16)
-                    .config('parquet.enable.summary-metadata', 'true')
-                    .getOrCreate())
+        .appName(APPLICATION_NAME)
+        .master(MASTER_URL)
+        .config('spark.cassandra.connection.host', MORPHL_SERVER_IP_ADDRESS)
+        .config('spark.cassandra.auth.username', MORPHL_CASSANDRA_USERNAME)
+        .config('spark.cassandra.auth.password', MORPHL_CASSANDRA_PASSWORD)
+        .config('spark.sql.shuffle.partitions', 16)
+        .config('parquet.enable.summary-metadata', 'true')
+        .getOrCreate())
 
     log4j = spark_session.sparkContext._jvm.org.apache.log4j
     log4j.LogManager.getRootLogger().setLevel(log4j.Level.ERROR)
 
     ga_config_df = (
         fetch_from_cassandra('ga_chp_config_parameters', spark_session)
-            .filter("morphl_component_name = 'ga_chp' AND parameter_name = 'days_worth_of_data_to_load'"))
+        .filter("morphl_component_name = 'ga_chp' AND parameter_name = 'days_worth_of_data_to_load'"))
 
     days_worth_of_data_to_load = int(ga_config_df.first().parameter_value)
 
     start_date = ((
         datetime.datetime.now() -
         datetime.timedelta(days=days_worth_of_data_to_load))
-            .strftime('%Y-%m-%d'))
+        .strftime('%Y-%m-%d'))
 
     ga_chp_users_df = fetch_from_cassandra('ga_chp_users', spark_session)
 
@@ -213,11 +220,11 @@ def main():
 
     ga_cu_df = (
         ga_chp_users_df
-            .filter("day_of_data_capture >= '{}'".format(start_date)))
+        .filter("day_of_data_capture >= '{}'".format(start_date)))
 
     ga_cus_df = (
         ga_chp_sessions_df
-            .filter("day_of_data_capture >= '{}'".format(start_date)))
+        .filter("day_of_data_capture >= '{}'".format(start_date)))
 
     json_schemas = {}
 
@@ -228,30 +235,30 @@ def main():
 
     after_json_parsing_df['ga_cu_df'] = (
         ga_cu_df
-            .withColumn('jmeta', f.from_json(
-                f.col('json_meta'), json_schemas['ga_cu_df']['json_meta_schema']))
-            .withColumn('jdata', f.from_json(
-                f.col('json_data'), json_schemas['ga_cu_df']['json_data_schema']))
-            .select(f.col('client_id'),
-                    f.col('day_of_data_capture'),
-                    f.col('jmeta.dimensions').alias('jmeta_dimensions'),
-                    f.col('jmeta.metrics').alias('jmeta_metrics'),
-                    f.col('jdata.dimensions').alias('jdata_dimensions'),
-                    f.col('jdata.metrics').alias('jdata_metrics')))
+        .withColumn('jmeta', f.from_json(
+            f.col('json_meta'), json_schemas['ga_cu_df']['json_meta_schema']))
+        .withColumn('jdata', f.from_json(
+            f.col('json_data'), json_schemas['ga_cu_df']['json_data_schema']))
+        .select(f.col('client_id'),
+                f.col('day_of_data_capture'),
+                f.col('jmeta.dimensions').alias('jmeta_dimensions'),
+                f.col('jmeta.metrics').alias('jmeta_metrics'),
+                f.col('jdata.dimensions').alias('jdata_dimensions'),
+                f.col('jdata.metrics').alias('jdata_metrics')))
 
     after_json_parsing_df['ga_cus_df'] = (
         ga_cus_df
-            .withColumn('jmeta', f.from_json(
-                f.col('json_meta'), json_schemas['ga_cus_df']['json_meta_schema']))
-            .withColumn('jdata', f.from_json(
-                f.col('json_data'), json_schemas['ga_cus_df']['json_data_schema']))
-            .select(f.col('client_id'),
-                    f.col('day_of_data_capture'),
-                    f.col('session_id'),
-                    f.col('jmeta.dimensions').alias('jmeta_dimensions'),
-                    f.col('jmeta.metrics').alias('jmeta_metrics'),
-                    f.col('jdata.dimensions').alias('jdata_dimensions'),
-                    f.col('jdata.metrics').alias('jdata_metrics')))
+        .withColumn('jmeta', f.from_json(
+            f.col('json_meta'), json_schemas['ga_cus_df']['json_meta_schema']))
+        .withColumn('jdata', f.from_json(
+            f.col('json_data'), json_schemas['ga_cus_df']['json_data_schema']))
+        .select(f.col('client_id'),
+                f.col('day_of_data_capture'),
+                f.col('session_id'),
+                f.col('jmeta.dimensions').alias('jmeta_dimensions'),
+                f.col('jmeta.metrics').alias('jmeta_metrics'),
+                f.col('jdata.dimensions').alias('jdata_dimensions'),
+                f.col('jdata.metrics').alias('jdata_metrics')))
 
     # An example row taken from the dataframe after_json_parsing_df['ga_cus_df'] would look like this:
     # jmeta_dimensions: ['ga:dimension1', 'ga:dimension2', 'ga:sessionCount', 'ga:daysSinceLastSession']
@@ -266,9 +273,9 @@ def main():
     # Renaming columns in the users dataframe to avoid ambiguity
     users_df = (
         processed_users_dict['result_df']
-            .withColumnRenamed('client_id', 'u_client_id')
-            .withColumnRenamed('day_of_data_capture', 'u_day_of_data_capture')
-            .withColumnRenamed('sessions', 'u_sessions'))
+        .withColumnRenamed('client_id', 'u_client_id')
+        .withColumnRenamed('day_of_data_capture', 'u_day_of_data_capture')
+        .withColumnRenamed('sessions', 'u_sessions'))
 
     processed_sessions_dict = process(after_json_parsing_df['ga_cus_df'],
                                       primary_key['ga_cus_df'],
@@ -290,9 +297,9 @@ def main():
     # Renaming columns in the sessions dataframe to avoid ambiguity
     sessions_df = (
         processed_sessions_dict['result_df']
-            .withColumnRenamed('client_id', 's_client_id')
-            .withColumnRenamed('day_of_data_capture', 's_day_of_data_capture')
-            .withColumnRenamed('sessions', 's_sessions'))
+        .withColumnRenamed('client_id', 's_client_id')
+        .withColumnRenamed('day_of_data_capture', 's_day_of_data_capture')
+        .withColumnRenamed('sessions', 's_sessions'))
 
     # Joining users and sessions
     joined_df = sessions_df.join(
@@ -351,20 +358,21 @@ def main():
     #  'page_load_sample']
 
     # List of dataframe fields to keep, configurable dynamically via the field baselines
-    tr_raw_fields_to_select = primary_key['ga_cus_df'] + s_schema_as_list + u_schema_as_list
+    tr_raw_fields_to_select = primary_key['ga_cus_df'] + \
+        s_schema_as_list + u_schema_as_list
 
     # Encoding the device category
     features_raw_df = (
         joined_df
-            .withColumnRenamed('s_client_id', 'client_id')
-            .withColumnRenamed('s_day_of_data_capture', 'day_of_data_capture')
-            .select(*tr_raw_fields_to_select)
-            .withColumn(
-                'is_desktop', f.when(
-                    f.col('device_category') == 'desktop', 1.0).otherwise(0.0))
-            .withColumn(
-                'is_mobile', f.when(
-                    f.col('device_category') == 'mobile', 1.0).otherwise(0.0))
+        .withColumnRenamed('s_client_id', 'client_id')
+        .withColumnRenamed('s_day_of_data_capture', 'day_of_data_capture')
+        .select(*tr_raw_fields_to_select)
+        .withColumn(
+            'is_desktop', f.when(
+                f.col('device_category') == 'desktop', 1.0).otherwise(0.0))
+        .withColumn(
+            'is_mobile', f.when(
+                f.col('device_category') == 'mobile', 1.0).otherwise(0.0))
             .withColumn(
                 'is_tablet', f.when(
                     f.col('device_category') == 'tablet', 1.0).otherwise(0.0))
@@ -404,46 +412,107 @@ def main():
         'table': ('ga_chp_features_raw_t' if TRAINING_OR_PREDICTION == 'training' else 'ga_chp_features_raw_p')}
 
     (features_raw_df
-         .write
-         .format('org.apache.spark.sql.cassandra')
-         .mode('append')
-         .options(**save_options_ga_chp_features_raw)
-         .save())
+     .write
+     .format('org.apache.spark.sql.cassandra')
+     .mode('append')
+     .options(**save_options_ga_chp_features_raw)
+     .save())
 
     # Using window functions: https://databricks.com/blog/2015/07/15/introducing-window-functions-in-spark-sql.html
-    grouped_by_client_id_before_dedup_sql_parts = [
+    grouped_by_client_id_before_dedup_sql_parts = grouped_by_client_id_before_dedup_sql_parts = [
         'SELECT',
         'client_id,',
         'SUM(pageviews) OVER (PARTITION BY client_id) AS pageviews,'
         'SUM(unique_pageviews) OVER (PARTITION BY client_id) AS unique_pageviews,'
         'SUM(hits) OVER (PARTITION BY client_id) AS hits,'
         'SUM(time_on_page) OVER (PARTITION BY client_id) AS time_on_page,'
-        'SUM(u_sessions) OVER (PARTITION BY client_id) AS u_sessions,'
-        'SUM(session_duration) OVER (PARTITION BY client_id) AS session_duration,'
-        'SUM(entrances) OVER (PARTITION BY client_id) AS entrances,'
-        'SUM(bounces) OVER (PARTITION BY client_id) AS bounces,'
-        'SUM(exits) OVER (PARTITION BY client_id) AS exits,'
-        'FIRST_VALUE(is_desktop) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS is_desktop,'
-        'FIRST_VALUE(is_mobile) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS is_mobile,'
-        'FIRST_VALUE(is_tablet) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS is_tablet,'
-        'FIRST_VALUE(session_count) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS session_count,'
+        'FIRST_VALUE(u_sessions) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS u_sessions,'
+        'FIRST_VALUE(session_duration) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS session_duration,'
+        'FIRST_VALUE(entrances) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS entrances,'
+        'FIRST_VALUE(bounces) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS bounces,'
+        'FIRST_VALUE(exits) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS exits,'
+        'FIRST_VALUE(is_desktop) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS is_desktop,'
+        'FIRST_VALUE(is_mobile) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS is_mobile,'
+        'FIRST_VALUE(is_tablet) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS is_tablet,'
+        'FIRST_VALUE(session_count) OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS session_count,'
         'FIRST_VALUE(days_since_last_session) OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS days_since_last_session,',
-        'ROW_NUMBER() OVER (PARTITION BY client_id ORDER BY day_of_data_capture DESC) AS rownum,',
+        'ROW_NUMBER() OVER (PARTITION BY client_id, day_of_data_capture ORDER BY day_of_data_capture DESC) AS rownum,',
         'AVG(days_since_last_session) OVER (PARTITION BY client_id) AS avgdays',
         'FROM',
         'features_raw'
     ]
-    grouped_by_client_id_before_dedup_sql = ' '.join(grouped_by_client_id_before_dedup_sql_parts)
-    grouped_by_client_id_before_dedup_df = spark_session.sql(grouped_by_client_id_before_dedup_sql)
-    grouped_by_client_id_before_dedup_df.createOrReplaceTempView('grouped_by_client_id_before_dedup')
 
-    # Only keeping the most recent record from every client id
-    # rownum = 1 while day_of_data_capture is sorted in descending order
-    grouped_by_client_id_sql = 'SELECT * FROM grouped_by_client_id_before_dedup WHERE rownum = 1'
-    grouped_by_client_id_df = spark_session.sql(grouped_by_client_id_sql)
-    grouped_by_client_id_df.createOrReplaceTempView('grouped_by_client_id')
+    grouped_by_client_id_before_dedup_sql = ' '.join(
+        grouped_by_client_id_before_dedup_sql_parts)
+    grouped_by_client_id_before_dedup_df = spark_session.sql(
+        grouped_by_client_id_before_dedup_sql)
 
-    # The schema for grouped_by_client_id_df is:
+    grouped_by_client_id_before_dedup_df.createOrReplaceTempView(
+        'grouped_by_client_id_before_dedup')
+
+    # Remove duplicate rows from the same day
+    grouped_by_client_id_by_day_sql = 'SELECT * FROM grouped_by_client_id_before_dedup WHERE rownum = 1'
+    grouped_by_client_id_by_day_df = spark_session.sql(
+        grouped_by_client_id_by_day_sql)
+
+    # Aggregate data by user
+    aggregated_data_by_client_id_df = (grouped_by_client_id_by_day_df
+                                       .select(
+                                           'client_id',
+                                           'pageviews',
+                                           'unique_pageviews',
+                                           'hits',
+                                           'time_on_page',
+                                           'u_sessions',
+                                           'session_duration',
+                                           'entrances',
+                                           'bounces',
+                                           'exits',
+                                           'is_desktop',
+                                           'is_mobile',
+                                           'is_tablet',
+                                           'session_count',
+                                           'days_since_last_session',
+                                           'avgdays'
+                                       )
+                                       .groupBy('client_id')
+                                       .agg(
+                                           f.first('pageviews').alias(
+                                               'pageviews'),
+                                           f.first('unique_pageviews').alias(
+                                               'unique_pageviews'),
+                                           f.first('hits').alias(
+                                               'hits'),
+                                           f.first('time_on_page').alias(
+                                               'time_on_page'),
+                                           f.sum('u_sessions').alias(
+                                               'u_sessions'),
+                                           f.sum('session_duration').alias(
+                                               'session_duration'),
+                                           f.sum('entrances').alias(
+                                               'entrances'),
+                                           f.sum('bounces').alias('bounces'),
+                                           f.sum('exits').alias('exits'),
+                                           f.first('is_desktop').alias(
+                                               'is_desktop'),
+                                           f.first('is_mobile').alias(
+                                               'is_mobile'),
+                                           f.first('is_tablet').alias(
+                                               'is_tablet'),
+                                           f.max('session_count').alias(
+                                               'session_count'),
+                                           f.first('days_since_last_session').alias(
+                                               'days_since_last_session'),
+                                           f.first('avgdays').alias(
+                                               'avgdays')
+                                       )
+                                       )
+
+    aggregated_data_by_client_id_df.cache()
+    aggregated_data_by_client_id_df.createOrReplaceTempView(
+        'aggregated_data_by_client_id')
+
+    # The schema for aggregated_data_by_client_id_df is:
     # |-- client_id: string (nullable = true)
     # |-- pageviews: double (nullable = true)
     # |-- unique_pageviews: double (nullable = true)
@@ -458,25 +527,25 @@ def main():
     # |-- is_tablet: double (nullable = true)
     # |-- session_count: float (nullable = true)
     # |-- days_since_last_session: float (nullable = true)
-    # |-- rownum: integer (nullable = true)
     # |-- avgdays: double (nullable = true)
 
     if TRAINING_OR_PREDICTION == 'training':
-        mean_value_of_avg_days_sql = 'SELECT AVG(avgdays) mean_value_of_avgdays FROM grouped_by_client_id'
-        mean_value_of_avg_days_df = spark_session.sql(mean_value_of_avg_days_sql)
+        mean_value_of_avg_days_sql = 'SELECT AVG(avgdays) mean_value_of_avgdays FROM aggregated_data_by_client_id'
+        mean_value_of_avg_days_df = spark_session.sql(
+            mean_value_of_avg_days_sql)
         churn_threshold = mean_value_of_avg_days_df.first().mean_value_of_avgdays
 
         final_df = (
-            grouped_by_client_id_df
-                .withColumn('churned', f.when(
-                    f.col('days_since_last_session') > churn_threshold, 1.0).otherwise(0.0))
-                .select('client_id',
-                        'pageviews', 'unique_pageviews', 'hits', 'time_on_page',
-                        'u_sessions', 'session_duration',
-                        'entrances', 'bounces', 'exits', 'session_count',
-                        'is_desktop', 'is_mobile', 'is_tablet',
-                        'churned')
-                .repartition(32))
+            aggregated_data_by_client_id_df
+            .withColumn('churned', f.when(
+                f.col('days_since_last_session') > churn_threshold, 1.0).otherwise(0.0))
+            .select('client_id',
+                    'pageviews', 'unique_pageviews', 'hits', 'time_on_page',
+                    'u_sessions', 'session_duration',
+                    'entrances', 'bounces', 'exits', 'session_count',
+                    'is_desktop', 'is_mobile', 'is_tablet',
+                    'churned')
+            .repartition(32))
 
         # The schema for final_df is:
         # |-- client_id: string (nullable = true)
@@ -503,11 +572,11 @@ def main():
             'table': 'ga_chp_features_training'}
 
         (final_df
-             .write
-             .format('org.apache.spark.sql.cassandra')
-             .mode('append')
-             .options(**save_options_ga_chp_features_training)
-             .save())
+         .write
+         .format('org.apache.spark.sql.cassandra')
+         .mode('append')
+         .options(**save_options_ga_chp_features_training)
+         .save())
 
         with open(CHURN_THRESHOLD_FILE, 'w') as fh:
             fh.write(str(churn_threshold))
@@ -516,13 +585,13 @@ def main():
             churn_threshold = fh.read().strip()
 
         final_df = (
-            grouped_by_client_id_df
-                .select('client_id',
-                        'pageviews', 'unique_pageviews', 'hits', 'time_on_page',
-                        'u_sessions', 'session_duration',
-                        'entrances', 'bounces', 'exits', 'session_count',
-                        'is_desktop', 'is_mobile', 'is_tablet')
-                .repartition(32))
+            aggregated_data_by_client_id_df
+            .select('client_id',
+                    'pageviews', 'unique_pageviews', 'hits', 'time_on_page',
+                    'u_sessions', 'session_duration',
+                    'entrances', 'bounces', 'exits', 'session_count',
+                    'is_desktop', 'is_mobile', 'is_tablet')
+            .repartition(32))
 
         # The schema for final_df is:
         # |-- client_id: string (nullable = true)
@@ -548,11 +617,12 @@ def main():
             'table': 'ga_chp_features_prediction'}
 
         (final_df
-             .write
-             .format('org.apache.spark.sql.cassandra')
-             .mode('append')
-             .options(**save_options_ga_chp_features_prediction)
-             .save())
+         .write
+         .format('org.apache.spark.sql.cassandra')
+         .mode('append')
+         .options(**save_options_ga_chp_features_prediction)
+         .save())
+
 
 if __name__ == '__main__':
     main()
